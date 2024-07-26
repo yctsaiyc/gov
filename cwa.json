@@ -1,0 +1,113 @@
+{
+    "base_dir": "/opt/airflow/playground/data/cwa",
+    "authorization": "CWA-********",
+    "base_url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore",
+    "datasets": {
+        "自動氣象站-氣象觀測資料": {
+            "name": "cwa_observation_weather",
+            "resource_id": "O-A0001-001",
+            "fields": [
+                "StationName",
+                "StationId",
+                "ObsTime-DateTime",
+                "GeoInfo-Coordinates-CoordinateName",
+                "GeoInfo-Coordinates-CoordinateFormat",
+                "GeoInfo-Coordinates-StationLatitude",
+                "GeoInfo-Coordinates-StationLongitude",
+                "GeoInfo-StationAltitude",
+                "GeoInfo-CountyName",
+                "GeoInfo-TownName",
+                "GeoInfo-CountyCode",
+                "GeoInfo-TownCode",
+                "WeatherElement-Weather",
+                "WeatherElement-Now-Precipitation",
+                "WeatherElement-WindDirection",
+                "WeatherElement-WindSpeed",
+                "WeatherElement-AirTemperature",
+                "WeatherElement-RelativeHumidity",
+                "WeatherElement-AirPressure",
+                "WeatherElement-GustInfo-PeakGustSpeed",
+                "WeatherElement-GustInfo-Occurred_at-WindDirection",
+                "WeatherElement-GustInfo-Occurred_at-DateTime",
+                "WeatherElement-DailyExtreme-DailyHigh-TemperatureInfo-AirTemperature",
+                "WeatherElement-DailyExtreme-DailyHigh-TemperatureInfo-Occurred_at-DateTime",
+                "WeatherElement-DailyExtreme-DailyLow-TemperatureInfo-AirTemperature",
+                "WeatherElement-DailyExtreme-DailyLow-TemperatureInfo-Occurred_at-DateTime"
+            ]
+        },
+        "自動雨量站-雨量觀測資料": {
+            "name": "cwa_observation_rainfall",
+            "resource_id": "O-A0002-001",
+            "fields": [
+                "StationName",
+                "StationId",
+                "Maintainer",
+                "ObsTime-DateTime",
+                "GeoInfo-Coordinates-CoordinateName",
+                "GeoInfo-Coordinates-CoordinateFormat",
+                "GeoInfo-Coordinates-StationLatitude",
+                "GeoInfo-Coordinates-StationLongitude",
+                "GeoInfo-StationAltitude",
+                "GeoInfo-CountyName",
+                "GeoInfo-TownName",
+                "GeoInfo-CountyCode",
+                "GeoInfo-TownCode",
+                "RainfallElement-Now-Precipitation",
+                "RainfallElement-Past10Min-Precipitation",
+                "RainfallElement-Past1hr-Precipitation",
+                "RainfallElement-Past3hr-Precipitation",
+                "RainfallElement-Past6Hr-Precipitation",
+                "RainfallElement-Past12hr-Precipitation",
+                "RainfallElement-Past24hr-Precipitation",
+                "RainfallElement-Past2days-Precipitation"
+            ]
+        },
+        "現在天氣觀測報告-現在天氣觀測報告": {
+            "name": "cwa_observation_now",
+            "resource_id": "O-A0003-001",
+            "fields": [
+                "StationName",
+                "StationId",
+                "ObsTime-DateTime",
+                "GeoInfo-Coordinates-CoordinateName",
+                "GeoInfo-Coordinates-CoordinateFormat",
+                "GeoInfo-Coordinates-StationLatitude",
+                "GeoInfo-Coordinates-StationLongitude",
+                "GeoInfo-StationAltitude",
+                "GeoInfo-CountyName",
+                "GeoInfo-TownName",
+                "GeoInfo-CountyCode",
+                "GeoInfo-TownCode",
+                "WeatherElement-Weather",
+                "WeatherElement-VisibilityDescription",
+                "WeatherElement-SunshineDuration",
+                "WeatherElement-Now-Precipitation",
+                "WeatherElement-WindDirection",
+                "WeatherElement-WindSpeed",
+                "WeatherElement-AirTemperature",
+                "WeatherElement-RelativeHumidity",
+                "WeatherElement-AirPressure",
+                "WeatherElement-UVIndex",
+                "WeatherElement-Max10MinAverage-WindSpeed",
+                "WeatherElement-Max10MinAverage-Occurred_at-WindDirection",
+                "WeatherElement-Max10MinAverage-Occurred_at-DateTime",
+                "WeatherElement-GustInfo-PeakGustSpeed",
+                "WeatherElement-GustInfo-Occurred_at-WindDirection",
+                "WeatherElement-GustInfo-Occurred_at-DateTime",
+                "WeatherElement-DailyExtreme-DailyHigh-TemperatureInfo-AirTemperature",
+                "WeatherElement-DailyExtreme-DailyHigh-TemperatureInfo-Occurred_at-DateTime",
+                "WeatherElement-DailyExtreme-DailyLow-TemperatureInfo-AirTemperature",
+                "WeatherElement-DailyExtreme-DailyLow-TemperatureInfo-Occurred_at-DateTime"
+            ]
+        },
+        "紫外線指數-每日紫外線指數最大值": {
+            "name": "cwa_observation_uv",
+            "resource_id": "O-A0005-001",
+            "fields": [
+                "StationId",
+                "UVIndex",
+                "Date"
+            ]
+        }
+    }
+}
