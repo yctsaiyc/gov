@@ -1,7 +1,7 @@
 import os
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 
 
@@ -89,6 +89,67 @@ class ETL_moenv:
         df.to_csv(csv_path, index=False)
         print(f"csv saved: {csv_path}")
 
+    def save_history_data(self, start="2000-01-01", end="2030-12-31"):
+        filtered_data = []
+        offset = 0
+        start_date = datetime.strptime(start, "%Y-%m-%d")
+        end_date = (
+            datetime.strptime(end, "%Y-%m-%d")
+            + timedelta(days=1)
+            - timedelta(seconds=1)
+        )
+
+        # 1. get json data be
+        should_continue = True
+
+        while should_continue:
+            url = f"{self.url}&offset={offset}"
+            print("URL:", url)
+
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                json_data = response.json()["records"]
+                checkpoint = self.get_checkpoint()
+
+                for data in json_data:
+                    data_date = datetime.strptime(
+                        data["datacreationdate"], "%Y-%m-%d %H:%M"
+                    )
+
+                    if start_date <= data_date <= end_date:
+                        filtered_data.append(data)
+
+                    elif data_date > end_date:
+                        continue
+
+                    else:
+                        should_continue = False
+                        break
+
+                offset += 1000
+
+            else:
+                print("Error:", response.status_code)
+
+        # 2. save filtered json data
+        json_path = os.path.join(
+            self.data_dir_path, "json", f"{self.prefix}_{self.code}_{start}_{end}.json"
+        )
+
+        with open(json_path, "w") as f:
+            json.dump(filtered_data, f, ensure_ascii=False, indent=4)
+
+        print(f"json saved: {json_path}")
+
+        # 3. save csv
+        df = pd.DataFrame(filtered_data)
+        csv_path = os.path.join(
+            self.data_dir_path, f"{self.prefix}_{self.code}_{start}_{end}.csv"
+        )
+        df.to_csv(csv_path, index=False)
+        print(f"csv saved: {csv_path}")
+
 
 if __name__ == "__main__":
     etl_moenv = ETL_moenv(
@@ -97,5 +158,6 @@ if __name__ == "__main__":
         data_dir_path="data",
         checkpoint_path="checkpoint.json",
     )
+    # etl_moenv.save_history_data("2022-01-01", "2024-09-30")
     json_data = etl_moenv.save_json()
     etl_moenv.save_csv(json_data)
