@@ -1,7 +1,7 @@
 import os
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 
 
@@ -22,7 +22,7 @@ class ETL_moenv:
         return f"{base_url}/{self.code}?api_key={self.api_key}"
 
     def get_data_path(self, data_format):
-        time = datetime.now().strftime("%Y%m%d%H%M%S")
+        time = datetime.now(timezone(timedelta(hours=8))).strftime("%Y%m%d%H%M%S")
         file_name = f"{self.prefix}_{self.code}_{time}.{data_format}"
 
         if data_format == "csv":
