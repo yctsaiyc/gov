@@ -22,12 +22,16 @@ class SGEnviron:
     def set_attrs(self):
         raise NotImplementedError("Subclasses must implement this method")
 
-    def get_json(self):
-        # 有下日期參數會得到當天所有資料
-        # 反之只會得到當下最新的即時資料
-        print(f"URL: {self.api_url}")
+    def get_json(self, date_str=None):
+        if date_str:
+            url = f"{self.api_url}?date={date_str}"
 
-        response = requests.get(self.api_url)
+        else:
+            url = self.api_url
+
+        print(f"URL: {url}")
+
+        response = requests.get(url)
 
         if response.status_code == 200:
             return response.json()
@@ -83,31 +87,24 @@ class SGEnviron:
         while start_date <= end_date:
             date_str = start_date.strftime("%Y-%m-%d")
 
-            url = f"{self.api_url}?date={date_str}"
-            print("URL:", url)
+            json_data = self.get_json(date_str)
+            # self.save_json(json_data)
 
-            response = requests.get(url)
+            df = self.json_to_df(json_data)
 
-            if response.status_code == 200:
-                df = self.json_to_df(response.json())
+            if not df.empty:
+                os.makedirs(self.data_dir_path, exist_ok=True)
 
-                if not df.empty:
-                    os.makedirs(self.data_dir_path, exist_ok=True)
+                csv_path = os.path.join(
+                    self.data_dir_path,
+                    f"{self.dataset_name}_{date_str.replace('-','')}.csv",
+                )
 
-                    csv_path = os.path.join(
-                        self.data_dir_path,
-                        f"{self.dataset_name}_{date_str.replace('-','')}.csv",
-                    )
-
-                    df.to_csv(csv_path, index=False)
-                    print(f"Saved: {csv_path}.")
-
-                else:
-                    print(f"Data for is empty.")
+                df.to_csv(csv_path, index=False)
+                print(f"Saved: {csv_path}.")
 
             else:
-                print(f"Failed to retrieve data. Status code: {response.status_code}")
-                raise
+                print(f"Data for is empty.")
 
             start_date += timedelta(days=1)
 
