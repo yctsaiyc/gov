@@ -393,6 +393,74 @@ class SGEnvironPSI(SGEnviron):
         return df
 
 
+class SGEnvironRainfall(SGEnvironAirTemperature):
+    def set_attrs(self):
+        self.dataset_name = "rainfall-across-singapore"
+        self.api_name = "rainfall"
+
+    def json_to_df(self, json_data):
+        df = super().json_to_df(json_data)
+        df.rename(columns={"Temperature": "Rainfall"}, inplace=True)
+        return df
+
+
+class SGEnvironRelativeHumidity(SGEnvironAirTemperature):
+    def set_attrs(self):
+        self.dataset_name = "relative-humidity-across-singapore"
+        self.api_name = "relative-humidity"
+
+    def json_to_df(self, json_data):
+        df = super().json_to_df(json_data)
+        df.rename(columns={"Temperature": "Relative Humidity"}, inplace=True)
+        return df
+
+
+class SGEnvironWindDirection(SGEnvironAirTemperature):
+    def set_attrs(self):
+        self.dataset_name = "wind-direction-across-singapore"
+        self.api_name = "wind-direction"
+
+    def json_to_df(self, json_data):
+        df = super().json_to_df(json_data)
+        df.rename(columns={"Temperature": "Wind Direction"}, inplace=True)
+        return df
+
+
+class SGEnvironWindSpeed(SGEnvironAirTemperature):
+    def set_attrs(self):
+        self.dataset_name = "wind-speed-across-singapore"
+        self.api_name = "wind-speed"
+
+    def json_to_df(self, json_data):
+        df = super().json_to_df(json_data)
+        df.rename(columns={"Temperature": "Wind Speed"}, inplace=True)
+        return df
+
+
+class SGEnvironUltraVioletIndex(SGEnviron):
+    def set_attrs(self):
+        self.dataset_name = "ultra-violet-index"
+        self.api_name = "uv-index"
+
+    def json_to_df(self, json_data):
+        columns = [
+            "Time",
+            "UVI",
+        ]
+
+        df = pd.DataFrame(columns=columns)
+
+        for item in json_data["items"]:
+            index = item["index"][0]
+
+            df.loc[len(df)] = [
+                self.process_datetime(index["timestamp"]),
+                index["value"],
+            ]
+
+        return df
+
+
 class SGEnvironAQI:
     def __init__(self):
         self.dataset_name = "aqi"
@@ -457,19 +525,113 @@ class SGEnvironAQI:
             print(f"Saved: {csv_path}.")
 
 
+class SGEnvironWind:
+    def __init__(self):
+        self.dataset_name = "wind"
+        self.data_dir_path = os.path.join("data/", self.dataset_name)
+
+    def save_data(self):
+        now = datetime.now(timezone(timedelta(hours=8)))
+
+        columns = [
+            "Time",
+            "Station Name",
+            "Temperature",
+            "Relative Humidity",
+            "Wind Direction",
+            "Wind Speed",
+            "Station Longitude",
+            "Station Latitude",
+            "WKT",
+        ]
+
+        sg_environ_air_temperature = SGEnvironAirTemperature()
+        sg_environ_relative_humidity = SGEnvironRelativeHumidity()
+        sg_environ_wind_direction = SGEnvironWindDirection()
+        sg_environ_wind_speed = SGEnvironWindSpeed()
+
+        json_air_temperature = sg_environ_air_temperature.get_json()
+        json_relative_humidity = sg_environ_relative_humidity.get_json()
+        json_wind_direction = sg_environ_wind_direction.get_json()
+        json_wind_speed = sg_environ_wind_speed.get_json()
+
+        df_air_temperature = sg_environ_air_temperature.json_to_df(json_air_temperature)
+
+        df_relative_humidity = sg_environ_relative_humidity.json_to_df(
+            json_relative_humidity
+        )
+
+        df_wind_direction = sg_environ_wind_direction.json_to_df(json_wind_direction)
+
+        df_wind_speed = sg_environ_wind_speed.json_to_df(json_wind_speed)
+
+        # 檢查即時資料時間是否相同
+        if (
+            set(df_air_temperature["Time"]) != set(df_relative_humidity["Time"])
+            or set(df_air_temperature["Time"]) != set(df_wind_direction["Time"])
+            or set(df_air_temperature["Time"]) != set(df_wind_speed["Time"])
+        ):
+            print("Time not match.")
+            raise
+
+        df = pd.merge(
+            df_air_temperature,
+            df_relative_humidity,
+            on=["Time", "Station Name", "Station Longitude", "Station Latitude", "WKT"],
+            how="outer",
+        )
+
+        df = pd.merge(
+            df,
+            df_wind_direction,
+            on=["Time", "Station Name", "Station Longitude", "Station Latitude", "WKT"],
+            how="outer",
+        )
+
+        df = pd.merge(
+            df,
+            df_wind_speed,
+            on=["Time", "Station Name", "Station Longitude", "Station Latitude", "WKT"],
+            how="outer",
+        )
+
+        df = df.reindex(columns=columns)
+
+        if not df.empty:
+            os.makedirs(self.data_dir_path, exist_ok=True)
+
+            csv_name = f"{self.dataset_name}_{now.year}{now.month}{now.day}_{now.hour}_{now.minute}.csv"
+
+            csv_path = os.path.join(self.data_dir_path, csv_name)
+
+            df.to_csv(csv_path, index=False)
+            print(f"Saved: {csv_path}.")
+
+
 if __name__ == "__main__":
     try:
-        sg_environ = SGEnviron24HourWeatherForecast()
+        # sg_environ = SGEnviron24HourWeatherForecast()
+
         # sg_environ = SGEnviron2HourWeatherForecast()
+
         # sg_environ = SGEnviron4DayWeatherForecast()
-        # sg_environ = SGEnvironAirTemperature()
+
+        # sg_environ = SGEnvironRainfall()
+
+        # sg_environ = SGEnvironUltraVioletIndex()
+
         # sg_environ = SGEnvironPM25()
         # sg_environ = SGEnvironPSI()
-        # sg_environ = SGEnvironRainfall()
         # sg_environ = SGEnvironAQI()
 
+        # sg_environ = SGEnvironAirTemperature()
+        # sg_environ = SGEnvironRelativeHumidity()
+        # sg_environ = SGEnvironWindDirection()
+        # sg_environ = SGEnvironWindSpeed()
+        sg_environ = SGEnvironWind()
+
         # # 儲存歷史資料
-        sg_environ.save_history_data("2024-12-09", "2024-12-11")
+        # sg_environ.save_history_data("2024-12-09", "2024-12-11")
 
         # 儲存當下資料
         sg_environ.save_data()
