@@ -48,7 +48,7 @@ class SGEnviron:
 
         json_path = os.path.join(
             json_dir_path,
-            f"{self.dataset_name}_{now.year}{now.month}{now.day}_{now.hour}.json",
+            f"{self.dataset_name}_{now.year}{now.month:02}{now.day:02}_{now.hour:02}.json",
         )
 
         with open(json_path, "w") as f:
@@ -71,7 +71,7 @@ class SGEnviron:
 
             csv_path = os.path.join(
                 self.data_dir_path,
-                f"{self.dataset_name}_{now.year}{now.month}{now.day}_{now.hour}.csv",
+                f"{self.dataset_name}_{now.year}{now.month:02}{now.day:02}_{now.hour:02}.csv",
             )
 
             df.to_csv(csv_path, index=False)
@@ -258,6 +258,19 @@ class SGEnvironAirTemperature(SGEnviron):
         self.dataset_name = "air-temperature-across-singapore"
         self.api_name = "air-temperature"
 
+    def get_json(self, date_str=None):
+        json_data = super().get_json(date_str)
+
+        # 歷史資料只保留整點和30分的資料
+        if date_str:
+            json_data["items"] = [
+                item
+                for item in json_data["items"]
+                if item["timestamp"].split(":")[1] in ["00", "30"]
+            ]
+
+        return json_data
+
     def json_to_df(self, json_data):
         columns = [
             "Time",
@@ -284,7 +297,7 @@ class SGEnvironAirTemperature(SGEnviron):
                 df.loc[len(df)] = [
                     self.process_datetime(item["timestamp"]),
                     station_dict[reading["station_id"]]["name"],
-                    reading["value"],
+                    reading.get("value"),
                     station_dict[reading["station_id"]]["longitude"],
                     station_dict[reading["station_id"]]["latitude"],
                     f"POINT({station_dict[reading['station_id']]['longitude']} {station_dict[reading['station_id']]['latitude']})",
@@ -506,7 +519,7 @@ class SGEnvironAQI(SGEnviron):
             df_pm25,
             df_psi,
             on=["Time", "Region", "Longitude", "Latitude", "WKT"],
-            how="inner",
+            how="outer",
         )
 
         df = df.reindex(columns=columns)
@@ -523,9 +536,7 @@ class SGEnvironAQI(SGEnviron):
         if not df.empty:
             os.makedirs(self.data_dir_path, exist_ok=True)
 
-            csv_name = (
-                f"{self.dataset_name}_{now.year}{now.month}{now.day}_{now.hour}.csv"
-            )
+            csv_name = f"{self.dataset_name}_{now.year}{now.month:02}{now.day:02}_{now.hour:02}.csv"
 
             csv_path = os.path.join(self.data_dir_path, csv_name)
 
@@ -627,7 +638,7 @@ class SGEnvironWind(SGEnviron):
         if not df.empty:
             os.makedirs(self.data_dir_path, exist_ok=True)
 
-            csv_name = f"{self.dataset_name}_{now.year}{now.month}{now.day}_{now.hour}_{now.minute}.csv"
+            csv_name = f"{self.dataset_name}_{now.year}{now.month:02}{now.day:02}_{now.hour:02}{now.minute:02}.csv"
 
             csv_path = os.path.join(self.data_dir_path, csv_name)
 
@@ -660,7 +671,7 @@ if __name__ == "__main__":
         # # 儲存歷史資料
         # sg_environ.save_history_data("2024-12-09", "2024-12-11")
 
-        # 儲存當下資料
+        # 儲存即時資料
         sg_environ.save_data()
 
     except Exception as e:
