@@ -458,14 +458,21 @@ class SGEnvironUltraVioletIndex(SGEnviron):
         return df
 
 
-class SGEnvironAQI:
+class SGEnvironAQI(SGEnviron):
     def __init__(self):
         self.dataset_name = "aqi"
         self.data_dir_path = os.path.join("data/", self.dataset_name)
 
-    def save_data(self):
-        now = datetime.now(timezone(timedelta(hours=8)))
+        self.sg_environ_pm25 = SGEnvironPM25()
+        self.sg_environ_psi = SGEnvironPSI()
 
+    def get_json(self, date_str=None):
+        json_pm25 = self.sg_environ_pm25.get_json(date_str)
+        json_psi = self.sg_environ_psi.get_json(date_str)
+
+        return json_pm25, json_psi
+
+    def json_to_df(self, json_data_tuple):
         columns = [
             "Time",
             "Region",
@@ -487,13 +494,8 @@ class SGEnvironAQI:
             "WKT",
         ]
 
-        sg_environ_pm25 = SGEnvironPM25()
-        json_pm25 = sg_environ_pm25.get_json()
-        df_pm25 = sg_environ_pm25.json_to_df(json_pm25)
-
-        sg_environ_psi = SGEnvironPSI()
-        json_psi = sg_environ_psi.get_json()
-        df_psi = sg_environ_psi.json_to_df(json_psi)
+        df_pm25 = self.sg_environ_pm25.json_to_df(json_data_tuple[0])
+        df_psi = self.sg_environ_psi.json_to_df(json_data_tuple[1])
 
         # 檢查即時資料時間是否相同
         if set(df_pm25["Time"]) != set(df_psi["Time"]):
@@ -509,6 +511,15 @@ class SGEnvironAQI:
 
         df = df.reindex(columns=columns)
 
+        return df
+
+    def save_data(self):
+        now = datetime.now(timezone(timedelta(hours=8)))
+
+        json_data_tuple = self.get_json()
+
+        df = self.json_to_df(json_data_tuple)
+
         if not df.empty:
             os.makedirs(self.data_dir_path, exist_ok=True)
 
@@ -522,14 +533,30 @@ class SGEnvironAQI:
             print(f"Saved: {csv_path}.")
 
 
-class SGEnvironWind:
+class SGEnvironWind(SGEnviron):
     def __init__(self):
         self.dataset_name = "wind"
         self.data_dir_path = os.path.join("data/", self.dataset_name)
 
-    def save_data(self):
-        now = datetime.now(timezone(timedelta(hours=8)))
+        self.sg_environ_air_temperature = SGEnvironAirTemperature()
+        self.sg_environ_relative_humidity = SGEnvironRelativeHumidity()
+        self.sg_environ_wind_direction = SGEnvironWindDirection()
+        self.sg_environ_wind_speed = SGEnvironWindSpeed()
 
+    def get_json(self, date_str=None):
+        json_air_temperature = self.sg_environ_air_temperature.get_json(date_str)
+        json_relative_humidity = self.sg_environ_relative_humidity.get_json(date_str)
+        json_wind_direction = self.sg_environ_wind_direction.get_json(date_str)
+        json_wind_speed = self.sg_environ_wind_speed.get_json(date_str)
+
+        return (
+            json_air_temperature,
+            json_relative_humidity,
+            json_wind_direction,
+            json_wind_speed,
+        )
+
+    def json_to_df(self, json_data_tuple):
         columns = [
             "Time",
             "Station Name",
@@ -542,25 +569,19 @@ class SGEnvironWind:
             "WKT",
         ]
 
-        sg_environ_air_temperature = SGEnvironAirTemperature()
-        sg_environ_relative_humidity = SGEnvironRelativeHumidity()
-        sg_environ_wind_direction = SGEnvironWindDirection()
-        sg_environ_wind_speed = SGEnvironWindSpeed()
-
-        json_air_temperature = sg_environ_air_temperature.get_json()
-        json_relative_humidity = sg_environ_relative_humidity.get_json()
-        json_wind_direction = sg_environ_wind_direction.get_json()
-        json_wind_speed = sg_environ_wind_speed.get_json()
-
-        df_air_temperature = sg_environ_air_temperature.json_to_df(json_air_temperature)
-
-        df_relative_humidity = sg_environ_relative_humidity.json_to_df(
-            json_relative_humidity
+        df_air_temperature = self.sg_environ_air_temperature.json_to_df(
+            json_data_tuple[0]
         )
 
-        df_wind_direction = sg_environ_wind_direction.json_to_df(json_wind_direction)
+        df_relative_humidity = self.sg_environ_relative_humidity.json_to_df(
+            json_data_tuple[1]
+        )
 
-        df_wind_speed = sg_environ_wind_speed.json_to_df(json_wind_speed)
+        df_wind_direction = self.sg_environ_wind_direction.json_to_df(
+            json_data_tuple[2]
+        )
+
+        df_wind_speed = self.sg_environ_wind_speed.json_to_df(json_data_tuple[3])
 
         # 檢查即時資料時間是否相同
         if (
@@ -593,6 +614,15 @@ class SGEnvironWind:
         )
 
         df = df.reindex(columns=columns)
+
+        return df
+
+    def save_data(self):
+        now = datetime.now(timezone(timedelta(hours=8)))
+
+        json_data_tuple = self.get_json()
+
+        df = self.json_to_df(json_data_tuple)
 
         if not df.empty:
             os.makedirs(self.data_dir_path, exist_ok=True)
