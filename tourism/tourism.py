@@ -3,6 +3,7 @@ import requests
 from urllib.parse import unquote
 from bs4 import BeautifulSoup
 import pandas as pd
+import zipfile
 import re
 
 
@@ -122,14 +123,25 @@ class Tourism:
             xlsx_path = os.path.join(self.xlsx_dir, xlsx_file)
 
             # xlsx轉df
-            print(f"Converting {xlsx_path}...")
+            print(f"\nConverting: {xlsx_path}...")
             df = pd.read_excel(xlsx_path, skiprows=2)
             df = self.process_df(df)
 
             # 存檔
-            csv_path = os.path.join(self.data_dir, xlsx_file.replace(".xlsx", ".csv"))
+            csv_name = xlsx_file.replace(".xlsx", ".csv")
+            csv_path = os.path.join(self.data_dir, csv_name)
             df.to_csv(csv_path, index=False)
-            print(f"Saved {csv_path}.")
+            print(f"Saved: {csv_path}.")
+
+            # 將xlsx壓縮後移到converted資料夾
+            zip_path = os.path.join(
+                self.converted_dir, xlsx_file.replace(".xlsx", ".zip")
+            )
+
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(csv_path, arcname=csv_name)
+
+            print(f"Compressed: {xlsx_path} to {zip_path}.")
 
     def process_df(self, df):
 
@@ -190,12 +202,15 @@ class Tourism:
 
         for col in df.columns:
             if pattern.match(col):
-                df["年月"] = col.replace("遊客人次", "")
+                year_month = col.replace("月遊客人次", "").split("年")
+                year = int(year_month[0]) + 1911
+                month = int(year_month[1])
+                df["年月"] = f"{year}-{month:02}"
                 df = df.rename(columns={col: "遊客人次"})
                 break
 
         # 排序欄位
-        df = df[self.columns]
+        df = df.reindex(columns=self.columns)
 
         return df
 
