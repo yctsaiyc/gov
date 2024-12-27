@@ -9,11 +9,11 @@ import re
 
 class Tourism:
     def __init__(self, data_dir="data", checkpoint_path="checkpoint.txt"):
-        self.data_dir = data_dir
-        self.xlsx_dir = os.path.join(self.data_dir, "xlsx")
-        self.converted_dir = os.path.join(self.data_dir, "xlsx", "converted")
+        self.csv_dir = data_dir
+        self.xlsx_dir = os.path.join(data_dir, "xlsx")
+        self.converted_dir = os.path.join(data_dir, "xlsx", "converted")
 
-        os.makedirs(self.data_dir, exist_ok=True)
+        os.makedirs(self.csv_dir, exist_ok=True)
         os.makedirs(self.xlsx_dir, exist_ok=True)
         os.makedirs(self.converted_dir, exist_ok=True)
 
@@ -32,7 +32,7 @@ class Tourism:
             "遊客人次",
             "去年同月遊客人次",
             "差值",
-            "成長率(%)",
+            "成長率",
             "遊客人次計算方式",
             "遊客人次計算類型",
             "資料來源",
@@ -45,9 +45,9 @@ class Tourism:
 
             # 如果檔案不存在，創建並寫入初始內容
             with open(self.checkpoint_path, "w", encoding="utf-8") as f:
-                f.write("113-12-01")
+                f.write("113-12-05")
 
-            print(f"Checkpoint file created with default content: 113-12-01")
+            print(f"Checkpoint file created with default content: 113-12-05")
 
         with open(self.checkpoint_path, "r", encoding="utf-8") as f:
             return f.read()
@@ -58,7 +58,7 @@ class Tourism:
         with open(self.checkpoint_path, "w", encoding="utf-8") as f:
             f.write(checkpoint)
 
-    def get_xlsx_links(self):
+    def get_xlsx_link_dict(self):
 
         # 取得html
         response = requests.get(self.url)
@@ -69,7 +69,7 @@ class Tourism:
         body = soup.body
         tbody = body.find("tbody")
 
-        links = []
+        link_dict = {}
 
         # 逐行尋找
         for tr in tbody.find_all("tr"):
@@ -81,25 +81,28 @@ class Tourism:
             if update_date < self.checkpoint:
                 continue
 
+            # 取得資料名稱
+            name = f"{tds[1].text}_{update_date.replace('-', '')}.xlsx"
+
             # 取得xlsx檔連結
             a = tds[2].find("a", title=lambda t: t and "檔案格式：XLS" in t)
-            links.append(self.base_url + a.get("href"))
+            link_dict[name] = self.base_url + a.get("href")
 
-        return links
+        return link_dict
 
-    def download_xlsx(self, xlsx_links):
-        for xlsx_link in xlsx_links:
+    def download_xlsx(self, xlsx_link_dict):
+        for xlsx_name, xlsx_link in xlsx_link_dict.items():
             print(f"URL: {xlsx_link}")
             response = requests.get(xlsx_link)
 
             if response.status_code == 200:
 
-                # 提取 Content-Disposition 標頭中的檔名
-                content_disposition = response.headers.get("Content-Disposition")
-                filename = content_disposition.split("filename=")[-1]
+                # # 提取 Content-Disposition 標頭中的檔名
+                # content_disposition = response.headers.get("Content-Disposition")
+                # filename = content_disposition.split("filename=")[-1]
 
-                # 解碼檔案名稱
-                xlsx_name = unquote(filename)
+                # # 解碼檔案名稱
+                # xlsx_name = unquote(filename)
 
                 # 建立檔案路徑
                 xlsx_path = os.path.join(self.xlsx_dir, xlsx_name)
@@ -124,12 +127,33 @@ class Tourism:
 
             # xlsx轉df
             print(f"\nConverting: {xlsx_path}...")
-            df = pd.read_excel(xlsx_path, skiprows=2)
-            df = self.process_df(df)
+
+            # 跳過標頭
+            if (
+                "2016" in xlsx_file
+                or "2017" in xlsx_file
+                or (
+                    "2018" in xlsx_file
+                    and "11月" not in xlsx_file
+                    and "12月" not in xlsx_file
+                )
+                or "2020" in xlsx_file
+            ):
+                df = pd.read_excel(xlsx_path, skiprows=1)
+
+            else:
+                df = pd.read_excel(xlsx_path, skiprows=2)
+
+            # 處理df
+            year_month_split = xlsx_file.split("月")[0].split("年")
+            year = int(year_month_split[0])
+            month = int(year_month_split[1])
+            year_month = f"{year}-{month:02}"
+            df = self.process_df(df, year_month)
 
             # 存檔
             csv_name = xlsx_file.replace(".xlsx", ".csv")
-            csv_path = os.path.join(self.data_dir, csv_name)
+            csv_path = os.path.join(self.csv_dir, csv_name)
             df.to_csv(csv_path, index=False)
             print(f"Saved: {csv_path}.")
 
@@ -143,32 +167,45 @@ class Tourism:
 
             print(f"Compressed: {xlsx_path} to {zip_path}.")
 
-    def process_df(self, df):
+    def process_df(self, df, year_month):
+        print("\n原欄位:", df.columns)
 
-        # 刪除欄位名稱的換行符號
-        df.columns = [col.replace("\n", "") for col in df.columns]
+        # 刪除欄位名稱的換行符號和空格
+        df.columns = [col.split("\n")[0].replace(" ", "") for col in df.columns]
 
         # 重新命名部份欄位名稱
         df = df.rename(
             columns={
                 "類型Type": "類型",
-                "觀光遊憩區Scenic Spots": "觀光遊憩區",
+                "類型Class": "類型",
+                "觀光遊憩區ScenicSpots": "觀光遊憩區",
                 "縣市City/Country": "縣市",
+                "縣市別": "縣市",
+                "縣市別City/County": "縣市",
+                "縣市別Location": "縣市",
+                "今年人數": "遊客人次",
+                f"{int(year_month.split('-')[0])-1911}年{int(year_month.split('-')[1])}月": "遊客人次",
+                "上年同月": "去年同月遊客人次",
                 "上年同月遊客人次": "去年同月遊客人次",
+                "備註": "遊客人次計算方式",
+                "備註Endorse": "遊客人次計算方式",
             }
         )
 
+        print("\n修改欄位名稱後:", df.columns)
+
+        print("\n原資料:", df.head(2))
+
         # 刪除英文
         cols = ["類型", "觀光遊憩區", "縣市"]
-        df[cols] = df[cols].map(lambda x: x.split("\n")[0] if isinstance(x, str) else x)
+        df[cols] = df[cols].map(
+            lambda x: x.split("\n")[0].split(" ")[0] if isinstance(x, str) else x
+        )
 
         # 新增「觀光風景區」欄位
         del_idx = []
 
         for idx, row in df.iterrows():
-            if row["類型"] not in ["國家公園", "國家級風景特定區"]:
-                break
-
             if pd.isna(row["縣市"]):
                 park = row["觀光遊憩區"]
                 del_idx.append(idx)
@@ -178,6 +215,9 @@ class Tourism:
                 df.at[idx, "觀光風景區"] = park
 
         df = df.map(lambda x: x.replace("  ", "") if isinstance(x, str) else x)
+
+        # 刪除觀光遊憩區中的分類和最下方的備註
+        print(del_idx)
         df = df.drop(del_idx, axis=0).reset_index(drop=True)
 
         # 處理nan
@@ -186,31 +226,22 @@ class Tourism:
         # 刪除tab
         df = df.replace("\t", "", regex=True)
 
-        # 刪除資料來源備註
-        df = df[:-2]
-
         # 新增遊客人次計算類型欄位
+        # df.to_csv("tmp.csv", index=False)
         df["遊客人次計算類型"] = df["遊客人次計算方式"].map(
-            lambda x: self.get_count_type(x)
+            lambda x: self.get_count_type(x) if isinstance(x, str) else x
         )
 
         # 替換成長率的"-"為空值
-        df["成長率(%)"] = df["成長率(%)"].replace("-", "")
+        df["成長率"] = df["成長率"].replace("-", "")
 
         # 新增年月欄位
-        pattern = re.compile(r"^\d{2,3}年\d{1,2}月遊客人次$")
-
-        for col in df.columns:
-            if pattern.match(col):
-                year_month = col.replace("月遊客人次", "").split("年")
-                year = int(year_month[0]) + 1911
-                month = int(year_month[1])
-                df["年月"] = f"{year}-{month:02}"
-                df = df.rename(columns={col: "遊客人次"})
-                break
+        df["年月"] = year_month
 
         # 排序欄位
         df = df.reindex(columns=self.columns)
+
+        print("\n處理後:", df.head(2))
 
         return df
 
@@ -255,9 +286,69 @@ class Tourism:
         return None
         # raise Exception(f"需定義遊客人次計算類型: {count_method}")
 
+    def get_history_link_dict(self):
+        link_dict = {}
+
+        for page in range(2, 13):
+            url = f"{self.url}&P={page}"
+
+            # 取得html
+            response = requests.get(url)
+            html = response.text
+
+            # 取得table內容
+            soup = BeautifulSoup(html, "html.parser")
+            body = soup.body
+            tbody = body.find("tbody")
+
+            # 逐行尋找
+            for tr in tbody.find_all("tr"):
+                tds = tr.find_all("td")
+
+                update_date = tds[-1].text
+
+                # 取得xlsx檔連結
+                a = tds[2].find("a", title=lambda t: t and "檔案格式：XLS" in t)
+
+                name = f"{tds[1].text}_{update_date.replace('-', '')}.xlsx"
+
+                if "~" in name or "至" in name:
+                    continue
+
+                if not a:
+                    a = tds[2].find("a", title=lambda t: t and "檔案格式：ODS" in t)
+                    name = f"{tds[1].text}_{update_date.replace('-', '')}.ods"
+
+                if not a:
+                    a = tds[2].find("a", title=lambda t: t and "檔案格式：PDF" in t)
+                    name = f"{tds[1].text}_{update_date.replace('-', '')}.pdf"
+
+                name = name.replace(" ", "")
+
+                link = self.base_url + a.get("href")
+
+                link_dict[name] = link
+
+        return link_dict
+
+    def history_data_to_csv(self, history_link_dict):
+        for name, link in history_link_dict.items():
+            if "xlsx" in name:
+                tourism.xlsx_to_csv({name: link})
+
+            elif "ods" in name:
+                pass
+
+            elif "pdf" in name:
+                pass
+
 
 if __name__ == "__main__":
     tourism = Tourism(data_dir="data", checkpoint_path="checkpoint.txt")
-    # xlsx_links = tourism.get_xlsx_links()
-    # tourism.download_xlsx(xlsx_links)
+    # xlsx_link_dict = tourism.get_xlsx_link_dict()
+    # tourism.download_xlsx(xlsx_link_dict)
+    # tourism.xlsx_to_csv()
+
+    # history_link_dict = tourism.download_history_data()
+    # tourism.history_data_to_csv()
     tourism.xlsx_to_csv()
