@@ -59,7 +59,6 @@ class Tourism:
             f.write(checkpoint)
 
     def get_xlsx_link_dict(self):
-
         # 取得html
         response = requests.get(self.url)
         html = response.text
@@ -110,25 +109,9 @@ class Tourism:
                     f"Failed to download file. Status code: {response.status_code}"
                 )
 
-    def xlsx_to_df(self, xlsx_file):
-        xlsx_path = os.path.join(self.xlsx_dir, xlsx_file)
-
+    def xlsx_to_df(self, xlsx_path):
         # 跳過標頭
-        if (
-            "2016" in xlsx_file
-            or "2017" in xlsx_file
-            or (
-                "2018" in xlsx_file
-                and "11月" not in xlsx_file
-                and "12月" not in xlsx_file
-            )
-            or "2020" in xlsx_file
-        ):
-            df = pd.read_excel(xlsx_path, skiprows=1)
-
-        else:
-            df = pd.read_excel(xlsx_path, skiprows=2)
-
+        df = pd.read_excel(xlsx_path, skiprows=2)
         return df
 
     def xlsx_to_csv(self):
@@ -137,9 +120,11 @@ class Tourism:
         ]
 
         for xlsx_file in xlsx_files:
+            xlsx_path = os.path.join(self.xlsx_dir, xlsx_file)
+
             # xlsx轉df
             print(f"\nConverting: {xlsx_path}...")
-            df = self.xlsx_to_df(xlsx_file)
+            df = self.xlsx_to_df(xlsx_path)
 
             # 處理df
             year_month_split = xlsx_file.split("月")[0].split("年")
@@ -168,8 +153,9 @@ class Tourism:
             os.remove(xlsx_path)
             print(f"Deleted: {xlsx_path}.")
 
-    def rename_df_columns(self, df):
-        return df.rename(
+    def process_df(self, df, year_month):
+        # 重新命名部份欄位名稱
+        df = df.rename(
             columns={
                 "類型\nType": "類型",
                 "觀光遊憩區\nScenic Spots": "觀光遊憩區",
@@ -179,10 +165,6 @@ class Tourism:
                 "成長率\n(%)": "成長率",
             }
         )
-
-    def process_df(self, df, year_month):
-        # 重新命名部份欄位名稱
-        df = self.rename_df_columns(df)
 
         # 刪除英文
         cols = ["類型", "觀光遊憩區", "縣市"]
@@ -273,7 +255,7 @@ class Tourism:
         return None
 
 
-class Tourism_2023:
+class Tourism_2023(Tourism):
     def get_xlsx_link_dict(self):
         return {
             "2023年1月主要觀光遊憩據點遊客人數_1121005.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=30260",
@@ -291,7 +273,7 @@ class Tourism_2023:
         }
 
 
-class Tourism_2022:
+class Tourism_2022(Tourism):
     def get_xlsx_link_dict(self):
         return {
             "2022年1月主要觀光遊憩據點遊客人數_1110315.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27492",
@@ -309,7 +291,7 @@ class Tourism_2022:
         }
 
 
-class Tourism_2021:
+class Tourism_2021(Tourism):
     def get_xlsx_link_dict(self):
         return {
             "2021年1月主要觀光遊憩據點遊客人數_1100315.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27505",
@@ -327,7 +309,7 @@ class Tourism_2021:
         }
 
 
-class Tourism_2020:
+class Tourism_2020(Tourism):
     def get_xlsx_link_dict(self):
         return {
             "2020年1月主要觀光遊憩據點遊客人數_1090311.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27517",
@@ -344,30 +326,83 @@ class Tourism_2020:
             "2020年12月主要觀光遊憩據點遊客人數_1100217.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27506",
         }
 
-    def rename_df_columns(self, df):
-        return df.rename(
+    def xlsx_to_df(self, xlsx_path):
+        # 跳過標頭
+        df = pd.read_excel(xlsx_path, skiprows=1)
+        return df
+
+    def process_df(self, df, year_month):
+        # 重新命名部份欄位名稱
+        df = df.rename(
             columns={
-                "類型\nType": "類型",
-                "類型\nClass": "類型",
-                "觀光遊憩區\nScenic Spots": "觀光遊憩區",
+                "類型": "類型",
                 "觀 光 遊 憩 區\nScenic Spots": "觀光遊憩區",
-                "縣市\nCity/Country": "縣市",
                 "縣 市 別\nCity/ County": "縣市",
                 f"{int(year_month.split('-')[0])-1911}年{int(year_month.split('-')[1])}月\n遊客人次": "遊客人次",
                 "上年同月\n遊客人次": "去年同月遊客人次",
                 "成長率\n(%)": "成長率",
-                "縣市City/Country": "縣市",
-                "縣市別": "縣市",
-                "縣市別City/County": "縣市",
-                "縣市別Location": "縣市",
-                "今年人數": "遊客人次",
-                f"{int(year_month.split('-')[0])-1911}年{int(year_month.split('-')[1])}月": "遊客人次",
-                "上年同月": "去年同月遊客人次",
-                "上年同月遊客人次": "去年同月遊客人次",
-                "備註": "遊客人次計算方式",
                 "備    註 Endorse\n(計算遊客人數之方法或其他)": "遊客人次計算方式",
             }
         )
+
+        # 刪除英文
+        cols = ["類型", "觀光遊憩區", "縣市"]
+        df[cols] = df[cols].map(lambda x: x.split("\n")[0] if isinstance(x, str) else x)
+        df["縣市"] = df["縣市"].map(
+            lambda x: x.split(" ")[0] if isinstance(x, str) else x
+        )
+
+        # 新增「觀光風景區」欄位
+        del_idx = []
+
+        for idx, row in df.iterrows():
+            if row["類型"] not in ["國家公園", "國家級風景特定區"] and not pd.isna(
+                row["類型"]
+            ):
+                break
+
+            # 針對個別資料處理
+            if row["觀光遊憩區"] == "野柳海洋世界":
+                df.at[idx, "類型"] = "國家級風景特定區"
+                df.at[idx, "觀光風景區"] = "野柳海洋世界"
+                park = "野柳海洋世界"
+                continue
+
+            if pd.isna(row["縣市"]):
+                park = row["觀光遊憩區"]
+                del_idx.append(idx)
+                continue
+
+            else:
+                df.at[idx, "觀光風景區"] = park
+
+        df = df.map(lambda x: x.replace("  ", "") if isinstance(x, str) else x)
+        df = df.drop(del_idx, axis=0).reset_index(drop=True)
+
+        # 處理nan
+        df = df.replace("nan", "")
+
+        # 刪除tab
+        df = df.replace("\t", "", regex=True)
+
+        # 刪除資料來源備註
+        df = df[:-6]
+
+        # 新增遊客人次計算類型欄位
+        df["遊客人次計算類型"] = df["遊客人次計算方式"].map(
+            lambda x: self.get_count_type(x) if isinstance(x, str) else ""
+        )
+
+        # 替換成長率的"-"為空值
+        df["成長率"] = df["成長率"].replace("-", "")
+
+        # 新增年月欄位
+        df["年月"] = year_month
+
+        # 排序欄位
+        df = df.reindex(columns=self.columns)
+
+        return df
 
 
 if __name__ == "__main__":
