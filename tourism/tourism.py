@@ -462,8 +462,106 @@ class Tourism_2019(Tourism):
         return df
 
 
+class Tourism_2018(Tourism):
+    def get_xlsx_link_dict(self):
+        return {
+            "2018年1月主要觀光遊憩據點遊客人數_1070326.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27545",
+            "2018年2月主要觀光遊憩據點遊客人數_1070423.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27544",
+            "2018年3月主要觀光遊憩據點遊客人數_1070504.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27543",
+            "2018年4月主要觀光遊憩據點遊客人數_1070806.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27541",
+            "2018年5月主要觀光遊憩據點遊客人數_1070806.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27540",
+            "2018年6月主要觀光遊憩據點遊客人數_1070814.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27539",
+            "2018年7月主要觀光遊憩據點遊客人數_1071025.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27538",
+            "2018年8月主要觀光遊憩據點遊客人數_1071025.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27536",
+            "2018年9月主要觀光遊憩據點遊客人數_1071126.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27535",
+            "2018年10月主要觀光遊憩據點遊客人數_1071225.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27533",
+            "2018年11月主要觀光遊憩據點遊客人數_1080125.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27532",
+            "2018年12月主要觀光遊憩據點遊客人數_1080225.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27531",
+        }
+
+    def xlsx_to_df(self, xlsx_path):
+        # 跳過標頭
+        if "11月" in xlsx_path or "12月" in xlsx_path:
+            df = pd.read_excel(xlsx_path, skiprows=2)
+
+        else:
+            df = pd.read_excel(xlsx_path, skiprows=1)
+
+        return df
+
+    def process_df(self, df, year_month):
+        # 重新命名部份欄位名稱
+        df.columns.values[0] = "類型"
+        df.columns.values[1] = "觀光遊憩區"
+        df.columns.values[2] = "縣市"
+        df.columns.values[3] = "遊客人次"
+        df.columns.values[4] = "去年同月遊客人次"
+        df.columns.values[5] = "成長率"
+        df.columns.values[6] = "遊客人次計算方式"
+
+        # 刪除英文
+        cols = ["類型", "觀光遊憩區", "縣市"]
+        df[cols] = df[cols].map(
+            lambda x: x.split("\n")[0].split(" ")[0] if isinstance(x, str) else x
+        )
+
+        # 新增「觀光風景區」欄位
+        del_idx = []
+        category = "國家風景區"
+
+        for idx, row in df.iterrows():
+            # 填入類型欄位
+            if pd.isna(row["類型"]):
+                df.at[idx, "類型"] = category
+
+            else:
+                category = row["類型"]
+
+            # 只有國家公園和國家風景區有觀光風景區
+            if row["類型"] == "公營遊憩區":
+                park = None
+
+            if pd.isna(row["縣市"]):
+                park = row["觀光遊憩區"]
+                del_idx.append(idx)
+                continue
+
+            # 填入觀光風景區欄位
+            else:
+                df.at[idx, "觀光風景區"] = park
+
+        df = df.map(lambda x: x.replace("  ", "") if isinstance(x, str) else x)
+        df = df.drop(del_idx, axis=0).reset_index(drop=True)
+
+        # 處理nan
+        df = df.replace("nan", "")
+
+        # 刪除tab
+        df = df.replace("\t", "", regex=True)
+
+        # 新增遊客人次計算類型欄位
+        df["遊客人次計算類型"] = df["遊客人次計算方式"].map(
+            lambda x: self.get_count_type(x) if isinstance(x, str) else ""
+        )
+
+        # 替換成長率的"-"為空值
+        df["成長率"] = df["成長率"].replace("-", "")
+
+        # 新增年月欄位
+        df["年月"] = year_month
+
+        # 排序欄位
+        df = df.reindex(columns=self.columns)
+
+        # 刪除"◎"符號
+        df = df.map(lambda x: x.replace("◎", "") if isinstance(x, str) else x)
+
+        return df
+
+
 if __name__ == "__main__":
-    tourism = Tourism_2019(data_dir="data")
+    tourism = Tourism_2018(data_dir="data")
+    # tourism = Tourism_2019(data_dir="data")
     # tourism = Tourism_2020(data_dir="data")
     # tourism = Tourism_2021(data_dir="data")
     # tourism = Tourism_2022(data_dir="data")
