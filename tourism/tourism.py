@@ -35,7 +35,7 @@ class Tourism:
             "成長率",
             "遊客人次計算方式",
             "遊客人次計算類型",
-            "資料來源",
+            "資料來源",  # 2023年6月後才有
         ]
 
     def get_checkpoint(self):
@@ -110,19 +110,36 @@ class Tourism:
                     f"Failed to download file. Status code: {response.status_code}"
                 )
 
+    def xlsx_to_df(self, xlsx_file):
+        xlsx_path = os.path.join(self.xlsx_dir, xlsx_file)
+
+        # 跳過標頭
+        if (
+            "2016" in xlsx_file
+            or "2017" in xlsx_file
+            or (
+                "2018" in xlsx_file
+                and "11月" not in xlsx_file
+                and "12月" not in xlsx_file
+            )
+            or "2020" in xlsx_file
+        ):
+            df = pd.read_excel(xlsx_path, skiprows=1)
+
+        else:
+            df = pd.read_excel(xlsx_path, skiprows=2)
+
+        return df
+
     def xlsx_to_csv(self):
         xlsx_files = [
             file for file in os.listdir(self.xlsx_dir) if file.endswith(".xlsx")
         ]
 
         for xlsx_file in xlsx_files:
-            xlsx_path = os.path.join(self.xlsx_dir, xlsx_file)
-
             # xlsx轉df
             print(f"\nConverting: {xlsx_path}...")
-
-            # 跳過標頭
-            df = pd.read_excel(xlsx_path, skiprows=2)
+            df = self.xlsx_to_df(xlsx_file)
 
             # 處理df
             year_month_split = xlsx_file.split("月")[0].split("年")
@@ -143,15 +160,16 @@ class Tourism:
             )
 
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                zipf.write(csv_path, arcname=csv_name)
+                zipf.write(xlsx_path, arcname=csv_name.replace(".csv", ".xlsx"))
 
             print(f"Compressed: {xlsx_path} to {zip_path}.")
 
-    def process_df(self, df, year_month):
+            # 刪除xlsx檔案
+            os.remove(xlsx_path)
+            print(f"Deleted: {xlsx_path}.")
 
-        # 重新命名部份欄位名稱
-
-        df = df.rename(
+    def rename_df_columns(self, df):
+        return df.rename(
             columns={
                 "類型\nType": "類型",
                 "觀光遊憩區\nScenic Spots": "觀光遊憩區",
@@ -161,6 +179,10 @@ class Tourism:
                 "成長率\n(%)": "成長率",
             }
         )
+
+    def process_df(self, df, year_month):
+        # 重新命名部份欄位名稱
+        df = self.rename_df_columns(df)
 
         # 刪除英文
         cols = ["類型", "觀光遊憩區", "縣市"]
@@ -195,7 +217,7 @@ class Tourism:
 
         # 新增遊客人次計算類型欄位
         df["遊客人次計算類型"] = df["遊客人次計算方式"].map(
-            lambda x: self.get_count_type(x)
+            lambda x: self.get_count_type(x) if isinstance(x, str) else ""
         )
 
         # 替換成長率的"-"為空值
@@ -247,12 +269,119 @@ class Tourism:
             if key in count_method:
                 return keywords[key]
 
-        return None
         # raise Exception(f"需定義遊客人次計算類型: {count_method}")
+        return None
+
+
+class Tourism_2023:
+    def get_xlsx_link_dict(self):
+        return {
+            "2023年1月主要觀光遊憩據點遊客人數_1121005.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=30260",
+            "2023年2月主要觀光遊憩據點遊客人數_1120501.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=28055",
+            "2023年3月主要觀光遊憩據點遊客人數_1130206.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=28859",
+            "2023年4月主要觀光遊憩據點遊客人數_1130206.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=30262",
+            "2023年5月主要觀光遊憩據點遊客人數_1130206.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=28875",
+            "2023年6月主要觀光遊憩據點遊客人數_1130320.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31847",
+            "2023年7月主要觀光遊憩據點遊客人數_1130320.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31849",
+            "2023年8月主要觀光遊憩據點遊客人數_1130320.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31851",
+            "2023年9月主要觀光遊憩據點遊客人數_1130320.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31853",
+            "2023年10月主要觀光遊憩據點遊客人數_1131115.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=35600",
+            "2023年11月主要觀光遊憩據點遊客人數_1130315.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31825",
+            "2023年12月主要觀光遊憩據點遊客人數_1130206.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=31359",
+        }
+
+
+class Tourism_2022:
+    def get_xlsx_link_dict(self):
+        return {
+            "2022年1月主要觀光遊憩據點遊客人數_1110315.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27492",
+            "2022年2月主要觀光遊憩據點遊客人數_1110415.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27490",
+            "2022年3月主要觀光遊憩據點遊客人數_1110516.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27488",
+            "2022年4月主要觀光遊憩據點遊客人數_1110615.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27486",
+            "2022年5月主要觀光遊憩據點遊客人數_1110715.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27484",
+            "2022年6月主要觀光遊憩據點遊客人數_1110815.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27481",
+            "2022年7月主要觀光遊憩據點遊客人數_1120615.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27480",
+            "2022年8月主要觀光遊憩據點遊客人數_1120615.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27478",
+            "2022年9月主要觀光遊憩據點遊客人數_1111110.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27476",
+            "2022年10月主要觀光遊憩據點遊客人數_1111208.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27474",
+            "2022年11月主要觀光遊憩據點遊客人數_1120106.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27472",
+            "2022年12月主要觀光遊憩據點遊客人數_1120207.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27469",
+        }
+
+
+class Tourism_2021:
+    def get_xlsx_link_dict(self):
+        return {
+            "2021年1月主要觀光遊憩據點遊客人數_1100315.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27505",
+            "2021年2月主要觀光遊憩據點遊客人數_1100415.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27504",
+            "2021年3月主要觀光遊憩據點遊客人數_1100615.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27503",
+            "2021年4月主要觀光遊憩據點遊客人數_1100615.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27502",
+            "2021年5月主要觀光遊憩據點遊客人數_1100715.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27501",
+            "2021年6月主要觀光遊憩據點遊客人數_1100816.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27500",
+            "2021年7月主要觀光遊憩據點遊客人數_1100915.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27499",
+            "2021年8月主要觀光遊憩據點遊客人數_1101015.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27498",
+            "2021年9月主要觀光遊憩據點遊客人數_1101115.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27497",
+            "2021年10月主要觀光遊憩據點遊客人數_1101215.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27496",
+            "2021年11月主要觀光遊憩據點遊客人數_1110117.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27495",
+            "2021年12月主要觀光遊憩據點遊客人數_1110205.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27494",
+        }
+
+
+class Tourism_2020:
+    def get_xlsx_link_dict(self):
+        return {
+            "2020年1月主要觀光遊憩據點遊客人數_1090311.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27517",
+            "2020年2月主要觀光遊憩據點遊客人數_1090415.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27516",
+            "2020年3月主要觀光遊憩據點遊客人數_1090514.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27515",
+            "2020年4月主要觀光遊憩據點遊客人數_1090610.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27514",
+            "2020年5月主要觀光遊憩據點遊客人數_1090715.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27513",
+            "2020年6月主要觀光遊憩據點遊客人數_1090812.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27512",
+            "2020年7月主要觀光遊憩據點遊客人數_1090915.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27511",
+            "2020年8月主要觀光遊憩據點遊客人數_1091015.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27510",
+            "2020年9月主要觀光遊憩據點遊客人數_1091116.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27509",
+            "2020年10月主要觀光遊憩據點遊客人數_1091215.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27508",
+            "2020年11月主要觀光遊憩據點遊客人數_1100115.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27507",
+            "2020年12月主要觀光遊憩據點遊客人數_1100217.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27506",
+        }
+
+    def rename_df_columns(self, df):
+        return df.rename(
+            columns={
+                "類型\nType": "類型",
+                "類型\nClass": "類型",
+                "觀光遊憩區\nScenic Spots": "觀光遊憩區",
+                "觀 光 遊 憩 區\nScenic Spots": "觀光遊憩區",
+                "縣市\nCity/Country": "縣市",
+                "縣 市 別\nCity/ County": "縣市",
+                f"{int(year_month.split('-')[0])-1911}年{int(year_month.split('-')[1])}月\n遊客人次": "遊客人次",
+                "上年同月\n遊客人次": "去年同月遊客人次",
+                "成長率\n(%)": "成長率",
+                "縣市City/Country": "縣市",
+                "縣市別": "縣市",
+                "縣市別City/County": "縣市",
+                "縣市別Location": "縣市",
+                "今年人數": "遊客人次",
+                f"{int(year_month.split('-')[0])-1911}年{int(year_month.split('-')[1])}月": "遊客人次",
+                "上年同月": "去年同月遊客人次",
+                "上年同月遊客人次": "去年同月遊客人次",
+                "備註": "遊客人次計算方式",
+                "備    註 Endorse\n(計算遊客人數之方法或其他)": "遊客人次計算方式",
+            }
+        )
 
 
 if __name__ == "__main__":
-    tourism = Tourism(data_dir="data", checkpoint_path="checkpoint.txt")
+    tourism = Tourism_2020(data_dir="data", checkpoint_path="checkpoint.txt")
+    # tourism = Tourism_2021(data_dir="data", checkpoint_path="checkpoint.txt")
+    # tourism = Tourism_2022(data_dir="data", checkpoint_path="checkpoint.txt")
+    # tourism = Tourism_2023(data_dir="data", checkpoint_path="checkpoint.txt")
+    # tourism = Tourism(data_dir="data", checkpoint_path="checkpoint.txt")
+
+    # 取得連結
     xlsx_link_dict = tourism.get_xlsx_link_dict()
+
+    # 下載xlsx
     tourism.download_xlsx(xlsx_link_dict)
+
+    # 轉csv
     tourism.xlsx_to_csv()
