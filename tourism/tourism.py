@@ -559,8 +559,195 @@ class Tourism_2018(Tourism):
         return df
 
 
+class Tourism_2017(Tourism_2018):
+    def get_xlsx_link_dict(self):
+        return {
+            "2017年1月主要觀光遊憩據點遊客人數_1060324.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27562",
+            "2017年2月主要觀光遊憩據點遊客人數_1060421.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27561",
+            "2017年3月主要觀光遊憩據點遊客人數_1060522.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27560",
+            "2017年4月主要觀光遊憩據點遊客人數_1060621.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27558",
+            "2017年5月主要觀光遊憩據點遊客人數_1060721.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27557",
+            "2017年6月主要觀光遊憩據點遊客人數_1060828.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27556",
+            "2017年7月主要觀光遊憩據點遊客人數_1060921.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27554",
+            "2017年8月主要觀光遊憩據點遊客人數_1061025.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27553",
+            "2017年9月主要觀光遊憩據點遊客人數_1061127.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27552",
+            "2017年10月主要觀光遊憩據點遊客人數_1061222.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27550",
+            "2017年11月主要觀光遊憩據點遊客人數_1070115.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27549",
+            "2017年12月主要觀光遊憩據點遊客人數_1070212.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27547",
+        }
+
+    def xlsx_to_df(self, xlsx_path):
+        # 跳過標頭
+        df = pd.read_excel(xlsx_path, skiprows=1)
+        return df
+
+    def process_df(self, df, year_month):
+        # 重新命名部份欄位名稱
+        df.columns.values[0] = "類型"
+        df.columns.values[1] = "觀光遊憩區"
+        df.columns.values[2] = "縣市"
+        df.columns.values[3] = "遊客人次"
+        df.columns.values[4] = "去年同月遊客人次"
+        df.columns.values[5] = "成長率"
+        df.columns.values[6] = "遊客人次計算方式"
+        df = super().process_df(df, year_month)
+
+        for idx, row in df.iterrows():
+            if row["觀光風景區"] and "國家風景區" in row["觀光風景區"]:
+                df.at[idx, "類型"] = "國家風景區"
+
+            elif row["觀光風景區"] and "國家公園" in row["觀光風景區"]:
+                df.at[idx, "類型"] = "國家公園"
+
+            elif "Government" in row["類型"]:
+                df.at[idx, "類型"] = "公營遊憩區"
+
+            elif "Municipal-level" in row["類型"]:
+                df.at[idx, "類型"] = "直轄市級及縣(市)級風景特定區"
+
+            elif "Forest" in row["類型"]:
+                df.at[idx, "類型"] = "森林遊樂區"
+
+            elif "Beach" in row["類型"]:
+                df.at[idx, "類型"] = "海水浴場"
+
+            elif "Amusememt" in row["類型"]:
+                df.at[idx, "類型"] = "民營遊憩區"
+
+            elif "Temples" in row["類型"]:
+                df.at[idx, "類型"] = "寺廟"
+
+            elif "Historic" in row["類型"]:
+                df.at[idx, "類型"] = "古蹟、歷史建物"
+
+            elif "Others" in row["類型"]:
+                df.at[idx, "類型"] = "其他"
+
+        return df
+
+
+class Tourism_2016(Tourism_2017):
+    def get_xlsx_link_dict(self):
+        return {
+            "2016年1月主要觀光遊憩據點遊客人數_1050318.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17716",  # ods
+            "2016年2月主要觀光遊憩據點遊客人數_1050518.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17715",  # ods
+            "2016年3月主要觀光遊憩據點遊客人數_1050518.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17714",  # ods
+            "2016年4月主要觀光遊憩據點遊客人數_1050628.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17712",  # ods
+            "2016年5月主要觀光遊憩據點遊客人數_1050720.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17711",  # ods
+            "2016年6月主要觀光遊憩據點遊客人數_1050824.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17709",  # ods
+            "2016年7月主要觀光遊憩據點遊客人數_1050920.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17708",  # ods
+            "2016年8月主要觀光遊憩據點遊客人數_1051026.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27569",
+            "2016年9月主要觀光遊憩據點遊客人數_1051125.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27568",
+            "2016年10月主要觀光遊憩據點遊客人數_1051227.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27566",
+            "2016年11月主要觀光遊憩據點遊客人數_1060119.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27565",
+            "2016年12月主要觀光遊憩據點遊客人數_1060220.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=27564",
+        }
+
+    def process_df(self, df, year_month):
+        df = super().process_df(df, year_month)
+
+        df["觀光風景區"] = df["觀光風景區"].str.replace(
+            r"[a-zA-Z0-9.,'-]", "", regex=True
+        )
+        df["觀光遊憩區"] = df["觀光遊憩區"].str.replace(
+            r"[a-zA-Z0-9.,'-]", "", regex=True
+        )
+
+        return df
+
+
+class Tourism_2015(Tourism_2016):
+    def get_xlsx_link_dict(self):
+        return {
+            "2015年1月主要觀光遊憩據點遊客人數_1040323.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17733",  # ods
+            "2015年2月主要觀光遊憩據點遊客人數_1040413.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17732",  # ods
+            "2015年3月主要觀光遊憩據點遊客人數_1040518.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17730",  # ods
+            "2015年4月主要觀光遊憩據點遊客人數_1040618.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17729",  # ods
+            "2015年5月主要觀光遊憩據點遊客人數_1040720.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17728",  # ods
+            "2015年6月主要觀光遊憩據點遊客人數_1040817.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17727",  # ods
+            "2015年7月主要觀光遊憩據點遊客人數_1040918.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17725",  # ods
+            "2015年8月主要觀光遊憩據點遊客人數_1041021.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17724",  # ods
+            "2015年9月主要觀光遊憩據點遊客人數_1041130.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17722",  # ods
+            "2015年10月主要觀光遊憩據點遊客人數_1041228.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17721",  # ods
+            "2015年11月主要觀光遊憩據點遊客人數_1050122.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17720",  # ods
+            "2015年12月主要觀光遊憩據點遊客人數_1050222.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17719",  # ods
+        }
+
+    def process_df(self, df, year_month):
+        df = super().process_df(df, year_month)
+        df["類型"] = df["類型"].str.replace("County", "縣級風景特定區")
+        return df
+
+
+class Tourism_2014(Tourism_2015):
+    def get_xlsx_link_dict(self):
+        return {
+            "2014年1月主要觀光遊憩據點遊客人數_1030321.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17749",  # ods
+            "2014年2月主要觀光遊憩據點遊客人數_1030421.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17748",  # ods
+            "2014年3月主要觀光遊憩據點遊客人數_1030520.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17747",  # ods
+            "2014年4月主要觀光遊憩據點遊客人數_1030620.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17745",  # ods
+            "2014年5月主要觀光遊憩據點遊客人數_1030724.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17744",  # ods
+            "2014年6月主要觀光遊憩據點遊客人數_1030820.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17742",  # ods
+            "2014年7月主要觀光遊憩據點遊客人數_1030923.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17741",  # ods
+            "2014年8月主要觀光遊憩據點遊客人數_1031023.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17740",  # ods
+            "2014年9月主要觀光遊憩據點遊客人數_1031114.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17739",  # ods
+            "2014年10月主要觀光遊憩據點遊客人數_1031222.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17737",  # ods
+            "2014年11月主要觀光遊憩據點遊客人數_1040115.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17736",  # ods
+            "2014年12月主要觀光遊憩據點遊客人數_1040225.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17735",  # ods
+        }
+
+
+class Tourism_2013(Tourism_2014):
+    def get_xlsx_link_dict(self):
+        return {
+            "2013年1月主要觀光遊憩據點遊客人數_1020329.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17765",  # ods
+            "2013年2月主要觀光遊憩據點遊客人數_1020402.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17764",  # ods
+            "2013年3月主要觀光遊憩據點遊客人數_1030109.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17756",  # ods
+            "2013年4月主要觀光遊憩據點遊客人數_1020625.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17763",  # ods
+            "2013年5月主要觀光遊憩據點遊客人數_1020725.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17762",  # ods
+            "2013年6月主要觀光遊憩據點遊客人數_1020826.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17761",  # ods
+            "2013年7月主要觀光遊憩據點遊客人數_1020925.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17760",  # ods
+            "2013年8月主要觀光遊憩據點遊客人數_1021025.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17759",  # ods
+            "2013年9月主要觀光遊憩據點遊客人數_1021108.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17758",  # ods
+            "2013年10月主要觀光遊憩據點遊客人數_1030109.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17757",  # ods
+            "2013年11月主要觀光遊憩據點遊客人數_1030109.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17755",  # ods
+            "2013年12月主要觀光遊憩據點遊客人數_1030214.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17751",  # ods
+        }
+
+
+class Tourism_2012(Tourism_2013):
+    def get_xlsx_link_dict(self):
+        return {
+            "2012年1月主要觀光遊憩據點遊客人數_1010303.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17781",  # ods
+            "2012年2月主要觀光遊憩據點遊客人數_1010403.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17780",  # ods
+            "2012年3月主要觀光遊憩據點遊客人數_1010503.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17779",  # ods
+            "2012年4月主要觀光遊憩據點遊客人數_1010614.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17777",  # ods
+            "2012年5月主要觀光遊憩據點遊客人數_1010702.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17776",  # ods
+            "2012年6月主要觀光遊憩據點遊客人數_1010803.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17775",  # ods
+            "2012年7月主要觀光遊憩據點遊客人數_1010904.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17773",  # ods
+            "2012年8月主要觀光遊憩據點遊客人數_1011002.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17772",  # ods
+            "2012年9月主要觀光遊憩據點遊客人數_1011101.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17771",  # ods
+            "2012年10月主要觀光遊憩據點遊客人數_1011222.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17769",  # ods
+            "2012年11月主要觀光遊憩據點遊客人數_1020106.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17768",  # ods
+            "2012年12月主要觀光遊憩據點遊客人數_1020204.xlsx": "https://admin.taiwan.net.tw/fapi/AttFile?type=AttFile&id=17767",  # ods
+        }
+
+    def process_df(self, df, year_month):
+        df.iloc[:, 0] = df.iloc[:, 0].replace("公營觀光區", "公營遊憩區")
+        df = super().process_df(df, year_month)
+        df.iloc[:, 0] = df.iloc[:, 0].replace("公營遊憩區", "公營觀光區")
+        df.iloc[:, 0] = df.iloc[:, 0].replace("民營遊憩區", "民營觀光區")
+        return df
+
+
 if __name__ == "__main__":
-    tourism = Tourism_2018(data_dir="data")
+    tourism = Tourism_2012(data_dir="data")
+    # tourism = Tourism_2013(data_dir="data")
+    # tourism = Tourism_2014(data_dir="data")
+    # tourism = Tourism_2015(data_dir="data")
+    # tourism = Tourism_2016(data_dir="data")
+    # tourism = Tourism_2017(data_dir="data")
+    # tourism = Tourism_2018(data_dir="data")
     # tourism = Tourism_2019(data_dir="data")
     # tourism = Tourism_2020(data_dir="data")
     # tourism = Tourism_2021(data_dir="data")
