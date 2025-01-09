@@ -36,8 +36,8 @@ class PopulationAndHousingCensus:
         self.table = {
             # "1_常住人口數及人口密度": "t001",
             # "2_常住人口之性比例（不含移工）": "t002",
-            "3_常住人口之年齡結構": "t003",
-            "4_常住人口之年齡結構（不含移工）": "t004",
+            # "3_常住人口之年齡結構": "t003",
+            # "4_常住人口之年齡結構（不含移工）": "t004",
             "5_１５歲以上常住人口之婚姻狀況": "t005",
             "6_６歲以上本國籍常住人口使用語言情形": "t006",
             "7_６歲以上本國籍常住人口兒時最早學會語言情形": "t007",
@@ -112,8 +112,30 @@ class PopulationAndHousingCensus:
                 "６５歲以上",
                 "平均年齡（歲）",
             ],
-            "4_常住人口之年齡結構（不含移工）": "t004",
-            "5_１５歲以上常住人口之婚姻狀況": "t005",
+            "4_常住人口之年齡結構（不含移工）": [
+                "年月",
+                "縣市",
+                "鄉鎮市區",
+                "總計",
+                "未滿１５歲",
+                "１５－２４歲",
+                "２５－３４歲",
+                "３５－４４歲",
+                "４５－５４歲",
+                "５５－６４歲",
+                "６５歲以上",
+                "平均年齡（歲）",
+            ],
+            "5_１５歲以上常住人口之婚姻狀況": [
+                "年月",
+                "縣市",
+                "鄉鎮市區",
+                "總計",
+                "未婚",
+                "有配偶或同居伴侶",
+                "離婚或分居",
+                "喪偶",
+            ],
             "6_６歲以上本國籍常住人口使用語言情形": "t006",
             "7_６歲以上本國籍常住人口兒時最早學會語言情形": "t007",
             "8_６歲以上本國籍常住人口之父、母最常使用語言情形": "t008",
@@ -157,6 +179,31 @@ class PopulationAndHousingCensus:
             "46_有人經常居住住宅之平均每人使用房廳數及衛浴套數": "t046",
         }
 
+        self.number_of_district = {
+            "新北市": 29,
+            "臺北市": 12,
+            "桃園市": 13,
+            "基隆市": 7,
+            "新竹市": 3,
+            "宜蘭縣": 12,
+            "新竹縣": 13,
+            "臺中市": 29,
+            "苗栗縣": 18,
+            "彰化縣": 26,
+            "南投縣": 13,
+            "雲林縣": 20,
+            "臺南市": 37,
+            "高雄市": 38,
+            "嘉義市": 2,
+            "嘉義縣": 18,
+            "屏東縣": 33,
+            "澎湖縣": 6,
+            "臺東縣": 16,
+            "花蓮縣": 13,
+            "金門縣": 6,
+            "連江縣": 4,
+        }
+
     def save_xlsx(self, table_name, county_name):
         url = (
             f"{self.base_url}/{self.county[county_name]}/{self.table[table_name]}.xlsx"
@@ -186,7 +233,7 @@ class PopulationAndHousingCensus:
         if table_name == "1_常住人口數及人口密度":
             df = pd.read_excel(xlsx_path, skiprows=18)
 
-            df.columns = [
+            columns = [
                 "col0",
                 "鄉鎮市區",
                 "常住人口數(人)",
@@ -202,13 +249,20 @@ class PopulationAndHousingCensus:
                 "col12",
             ]
 
+            df.columns = columns
+
+            if county_name in ["新北市", "臺中市", "臺南市", "高雄市", "屏東縣"]:
+                df2 = pd.read_excel(xlsx_path, sheet_name=1, skiprows=14)
+                df2.columns = columns
+                df = pd.concat([df, df2])
+
             df = df.dropna(subset=["常住人口數(人)"])
             df = df.replace("　", "", regex=True)
 
         elif table_name == "2_常住人口之性比例（不含移工）":
             df = pd.read_excel(xlsx_path, skiprows=18)
 
-            df.columns = [
+            columns = [
                 "col0",
                 "鄉鎮市區",
                 "常住人口數(人)",
@@ -223,10 +277,17 @@ class PopulationAndHousingCensus:
                 "col11",
             ]
 
+            df.columns = columns
+
+            if county_name in ["新北市", "臺中市", "臺南市", "高雄市", "屏東縣"]:
+                df2 = pd.read_excel(xlsx_path, sheet_name=1, skiprows=14)
+                df2.columns = columns
+                df = pd.concat([df, df2])
+
             df = df.dropna(subset=["常住人口數(人)"])
             df = df.replace("　", "", regex=True)
 
-        elif table_name == "3_常住人口之年齡結構":
+        elif table_name in ["3_常住人口之年齡結構", "4_常住人口之年齡結構（不含移工）"]:
             df = pd.read_excel(xlsx_path, skiprows=16)
 
             df.columns = [
@@ -250,6 +311,37 @@ class PopulationAndHousingCensus:
                 "col17",
             ]
 
+            df = df.dropna(subset=["總計"])
+            df = df.replace("　", "", regex=True)
+
+        elif table_name == "5_１５歲以上常住人口之婚姻狀況":
+            df = pd.read_excel(xlsx_path, skiprows=18)
+
+            columns = [
+                "col0",
+                "鄉鎮市區",
+                "總計",
+                "未婚",
+                "有配偶或同居伴侶",
+                "離婚或分居",
+                "喪偶",
+                "年月",
+                "縣市",
+                "col9",
+                "col10",
+                "col11",
+                "col12",
+            ]
+
+            df.columns = columns
+
+            if county_name in ["新北市", "臺中市", "臺南市", "高雄市", "屏東縣"]:
+                for sheet_name in [1, 2]:
+                    df2 = pd.read_excel(xlsx_path, sheet_name=sheet_name, skiprows=14)
+                    df2.columns = columns
+                    df = pd.concat([df, df2])
+
+            df = df.dropna(subset=["總計"])
             df = df.replace("　", "", regex=True)
 
         else:
@@ -261,6 +353,12 @@ class PopulationAndHousingCensus:
 
         # 選擇需要的欄位
         df = df[self.column[table_name]]
+
+        # 檢查行政區數目
+        if len(df) != self.number_of_district[county_name]:
+            raise ValueError(
+                f"行政區數目錯誤：{county_name}({len(df)}/{self.number_of_district[county_name]})"
+            )
 
         return df
 
