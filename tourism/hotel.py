@@ -40,14 +40,14 @@ class Hotel:
                 print(f"Skip: {name}.")
                 continue
 
-            csv_path = f"{self.data_dir}/{name}.csv".replace(" ", "_")
+            csv_path = f"{self.data_dir}/{name}.csv".replace(" ", "")
             df.to_csv(csv_path, index=False)
             print(f"Saved: {csv_path}.")
 
     def get_links(self):
         file_page_url = f"{self.base_url}/businessinfo/FilePage?a={self.data_id}"
         link_dict = {}
-        page = 3  ###
+        page = 1  ###
 
         while True:
             url = f"{file_page_url}&P={page}"
@@ -71,7 +71,7 @@ class Hotel:
                     data_format = a.find("span").text.split("：")[-1]
                     link_dict[name][data_format] = f"{self.base_url}{link}"
 
-            return link_dict  ###
+            # return link_dict  ###
             page += 1
 
     def save_json(self, content, filename):
@@ -87,7 +87,7 @@ class TouristHotel(Hotel):
 
     def get_columns(self):
         return [
-            "地區/客房數",
+            "地區",
             "國際觀光旅館家數",
             "國際觀光旅館單人房數",
             "國際觀光旅館雙人房數",
@@ -191,25 +191,18 @@ class TouristHotelReport(Hotel):
             print(e)
             return pd.DataFrame()
 
-        # 2. 取得年月
-        if "202301" in name:
-            year_month = "2023-01"
-
-        elif "202006" in name:
-            year_month = "2020-06"
-
-        else:
-            year_month = df.iloc[0, 12].split("月")[0].replace("年", "-")
-
-        # 2.1 舊資料另外處理
+        # 1.1 舊資料另外處理
         if name.replace(" ", "")[:6] < "202006":
-            return self.get_df_before_202006(df, year_month)
+            return self.get_df_before_202006(df, name)
 
         elif name.replace(" ", "")[:6] < "202101":
-            return self.get_df_202006_to_2021(df, year_month)
+            return self.get_df_202006_to_2021(df, name)
 
         else:
             return pd.DataFrame()
+
+        # 2. 取得年月
+        year_month = df.iloc[0, 12].split("月")[0].replace("年", "-")
 
         # 3. 刪除多餘欄位
         df = df.iloc[:, [0, 3, 5, 8, 9] + list(range(11, 29))]
@@ -241,33 +234,43 @@ class TouristHotelReport(Hotel):
 
         return df
 
-    def get_df_202006_to_2021(self, df, year_month):
-        # 1. 刪除多餘欄位
+    def get_df_202006_to_2021(self, df, name):
+        # 1. 取得年月
+        if "202301" in name:
+            year_month = "2023-01"
+
+        elif "202006" in name:
+            year_month = "2020-06"
+
+        else:
+            year_month = df.iloc[0, 12].split("月")[0].replace("年", "-")
+
+        # 2. 刪除多餘欄位
         df = df.iloc[:, [0, 3, 5, 8, 9] + list(range(11, 19))]
 
-        # 2. 新增缺少欄位
+        # 3. 新增缺少欄位
         for i in [8, 9, 11, 12, 14, 15, 17, 18, 20, 21]:
             df.insert(i, f"new_col{i}", "")
 
-        # 3. 重新命名欄位
+        # 4. 重新命名欄位
         df.columns = self.columns
 
-        # 4. 新增年月欄位
+        # 5. 新增年月欄位
         df.insert(0, "年月", year_month)
 
-        # 5. 刪除 "總計" 及其以下的列
+        # 6. 刪除 "總計" 及其以下的列
         df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
 
-        # 6. 刪除 "小計" 所在的列，刪除表頭
+        # 7. 刪除 "小計" 所在的列，刪除表頭
         df = df[~df["分類"].isin(["小計", None, np.nan])]
 
-        # 7. 將住用率轉換成百分比
+        # 8. 將住用率轉換成百分比
         df["住用率"] = df["住用率"].astype(float).mul(100).round(2)
 
-        # 8. 印出資料長度
+        # 9. 印出資料長度
         print("DataFrame length:", len(df))
 
-        # 9. 刪除男女合計欄位
+        # 10. 刪除男女合計欄位
         df = df.drop(
             columns=[
                 col for col in df.columns if any(x in col for x in ["男", "女", "合計"])
@@ -276,15 +279,62 @@ class TouristHotelReport(Hotel):
 
         return df
 
-    def get_df_before_202006(self, df, year_month):
+    def get_df_before_202006(self, df, name):
         return pd.DataFrame()
+
+
+class StandardHotel(Hotel):
+    def get_data_id(self):
+        return "9248"
+
+    def get_columns(self):
+        return [
+            "縣市別",
+            "家數",
+            "房間數",
+            "員工人數",
+        ]
+
+    def get_df(self, name, url):
+        # 1. 讀取excel
+        try:
+            df = pd.read_excel(url)
+
+        except Exception as e:
+            print(e)
+            return pd.DataFrame()
+
+        # 2. 取得年月
+        year_month = df.iloc[0, 0].split("月")[0].replace("年", "-")
+
+        # 3. 新增員工人數欄位
+        if len(df.columns) == 3:
+            df["員工人數"] = None
+
+        # 4. 重新命名欄位
+        df.columns = self.columns
+
+        # 5. 新增年月欄位
+        df.insert(0, "年月", year_month)
+
+        # 6. 刪除表頭、"總計" 及其以下的列
+        df = df.iloc[2 : df[df["縣市別"].str.contains("總", na=False)].index.min()]
+
+        # 7. 印出資料長度
+        print("DataFrame length:", len(df))
+
+        return df
 
 
 if __name__ == "__main__":
     # # 觀光旅館合法家數統計表
-    # tourist_hotel = TouristHotel()
+    # tourist_hotel = TouristHotel("data/tourist_hotel")
     # tourist_hotel.save_all()
 
-    # 觀光旅館營運報表
-    tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
-    tourist_hotel_report.save_all()
+    # # 觀光旅館營運報表
+    # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
+    # tourist_hotel_report.save_all()
+
+    # 一般旅館家數及房間數
+    standard_hotel = StandardHotel("data/standard_hotel")
+    standard_hotel.save_all()
