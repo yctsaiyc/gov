@@ -349,7 +349,7 @@ class StandardHotelReport(Hotel):
 
     def get_columns(self):
         return [
-            "地區名稱",
+            "縣市",  # "地區名稱",
             "填報率",
             "未報家數",
             "住用及營收概況-客房住用數",
@@ -417,7 +417,7 @@ class StandardHotelReport(Hotel):
 
             # 3-4. 刪除表頭、"合計" 及其以下的列
             df2 = df2.iloc[
-                3 : df2[df2["地區名稱"].str.contains("合計", na=False)].index.min()
+                3 : df2[df2["縣市"].str.contains("計", na=False)].index.min()
             ]
 
             # 3-5. 百分率轉換
@@ -510,6 +510,38 @@ class HomeStay(Hotel):
         return df
 
 
+class HomeStayReport(StandardHotelReport):
+    def get_data_id(self):
+        return "9969"
+
+    def get_columns(self):
+        return [
+            "填報率",
+            "縣市",
+            "總出租客房數",
+            "客房住用數",
+            "客房住用率",
+            "住宿人次",
+            "平均房價",
+            "客房收入",
+            "餐飲收入",
+            "其他收入",
+            "收入合計",
+            "裝修及設備",
+            "登記經營者(男)",
+            "登記經營者(女)",
+            "登記經營者小計",
+            "員工人數(男)",
+            "員工人數(女)",
+            "員工人數小計",
+            "經營者及員工人數總計",
+            "未報家數",
+        ]
+
+    def get_df_before_2021(self, df):
+        return pd.DataFrame()
+
+
 if __name__ == "__main__":
     # # 觀光旅館合法家數統計表
     # tourist_hotel = TouristHotel("data/tourist_hotel")
@@ -527,6 +559,10 @@ if __name__ == "__main__":
     # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
     # standard_hotel_report.save_all()
 
-    # 民宿家數及房間數統計表
-    home_stay = HomeStay("data/home_stay")
-    home_stay.save_all()
+    # # 民宿家數及房間數統計表
+    # home_stay = HomeStay("data/home_stay")
+    # home_stay.save_all()
+
+    # 民宿營運報表
+    home_stay_report = HomeStayReport("data/home_stay_report")
+    home_stay_report.save_all()
