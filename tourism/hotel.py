@@ -283,6 +283,7 @@ class TouristHotelReport(Hotel):
         return pd.DataFrame()
 
 
+# 一般旅館家數及房間數統計表
 class StandardHotel(Hotel):
     def get_data_id(self):
         return "9248"
@@ -290,9 +291,12 @@ class StandardHotel(Hotel):
     def get_columns(self):
         return [
             "縣市別",
-            "家數",
-            "房間數",
-            "員工人數",
+            "合法旅館家數",
+            "合法旅館房間數",
+            "合法旅館員工人數",
+            "未合法旅館家數",
+            "未合法旅館房間數",
+            "未合法旅館員工人數",
         ]
 
     def get_df(self, name, url):
@@ -307,9 +311,21 @@ class StandardHotel(Hotel):
         # 2. 取得年月
         year_month = df.iloc[0, 0].split("月")[0].replace("年", "-")
 
-        # 3. 新增員工人數欄位
-        if len(df.columns) == 3:
-            df["員工人數"] = None
+        # 3. 新增缺少欄位
+        if len(df.columns) == 3:  # 2023-08以後
+            df["合法旅館員工人數"] = ""
+            df["未合法旅館家數"] = ""
+            df["未合法旅館房間數"] = ""
+            df["未合法旅館員工人數"] = ""
+
+        elif len(df.columns) == 4:  # 2019 到 2023-07
+            df["未合法旅館家數"] = ""
+            df["未合法旅館房間數"] = ""
+            df["未合法旅館員工人數"] = ""
+
+        elif len(df.columns) == 10:  # 2011-03 到 2018
+            # 刪除小計
+            df = df.iloc[:, :7]
 
         # 4. 重新命名欄位
         df.columns = self.columns
@@ -326,6 +342,107 @@ class StandardHotel(Hotel):
         return df
 
 
+# 一般旅館營運報表
+class StandardHotelReport(Hotel):
+    def get_data_id(self):
+        return "9711"
+
+    def get_columns(self):
+        return [
+            "地區名稱",
+            "填報率",
+            "未報家數",
+            "住用及營收概況-客房住用數",
+            "住用及營收概況-住用率",
+            "住用及營收概況-平均房價",
+            "住用及營收概況-房租收入 ",
+            "住用及營收概況-餐飲收入 ",
+            "住用及營收概況-總營業收入",
+            "各部門職工概況-客房部(男)",
+            "各部門職工概況-客房部(女)",
+            "各部門職工概況-客房部人數",
+            "各部門職工概況-餐飲部(男)",
+            "各部門職工概況-餐飲部(女)",
+            "各部門職工概況-餐飲部人數",
+            "各部門職工概況-管理部(男)",
+            "各部門職工概況-管理部(女)",
+            "各部門職工概況-管理部人數",
+            "各部門職工概況-其他部門(男)",
+            "各部門職工概況-其他部門(女)",
+            "各部門職工概況-其他部門人數",
+            "各部門職工概況-員工合計(男)",
+            "各部門職工概況-員工合計(女)",
+            "各部門職工概況-員工合計人數",
+        ]
+
+    def get_df(self, name, url):
+        if "1-12月" not in name and "1~12月" not in name:
+            return pd.DataFrame()
+
+        # 1. 讀取excel
+        try:
+            df_dict = pd.read_excel(url, sheet_name=None)
+
+        except Exception as e:
+            print(e)
+            return pd.DataFrame()
+
+        # 2. 創建空DataFrame
+        df = pd.DataFrame(columns=["年月"] + self.columns)
+
+        # 3. 合併所有sheet
+        year = name[:4]
+
+        for sheet_name in df_dict:
+            # 3-1. 檢查是否為單月資料
+            if "-" in sheet_name:
+                continue
+
+            df2 = df_dict[sheet_name]
+
+            # 3-1-1. 舊資料另外處理
+            if year <= "2021":
+                df2 = self.get_df_before_2021(df2)
+                df = pd.concat([df, df2], ignore_index=True)
+                continue
+
+            # 3-2. 重新命名欄位
+            df2.columns = self.columns
+
+            # 3-3. 新增年月欄位
+            month = sheet_name.replace("月", "").zfill(2)
+            year_month = f"{year}-{month}"
+            print(year_month)
+            df2.insert(0, "年月", year_month)
+
+            # 3-4. 刪除表頭、"合計" 及其以下的列
+            df2 = df2.iloc[
+                3 : df2[df2["地區名稱"].str.contains("合計", na=False)].index.min()
+            ]
+
+            # 3-5. 百分率轉換
+            mask = df2.columns.str.contains("率")
+            df2.loc[:, mask] = df2.loc[:, mask].astype(float).mul(100).round(2)
+
+            # 3-6. 印出資料長度
+            print("Number of Records:", len(df2))
+
+            # 3-7. 合併DataFrame
+            df = pd.concat([df, df2], ignore_index=True)
+
+        # 4. 刪除男女合計欄位
+        df = df.drop(
+            columns=[
+                col for col in df.columns if any(x in col for x in ["男", "女", "合計"])
+            ]
+        )
+
+        return df
+
+    def get_df_before_2021(self, df):
+        return pd.DataFrame()
+
+
 if __name__ == "__main__":
     # # 觀光旅館合法家數統計表
     # tourist_hotel = TouristHotel("data/tourist_hotel")
@@ -335,6 +452,10 @@ if __name__ == "__main__":
     # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
     # tourist_hotel_report.save_all()
 
-    # 一般旅館家數及房間數
-    standard_hotel = StandardHotel("data/standard_hotel")
-    standard_hotel.save_all()
+    # # 一般旅館家數及房間數統計表
+    # standard_hotel = StandardHotel("data/standard_hotel")
+    # standard_hotel.save_all()
+
+    # 一般旅館營運報表
+    standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
+    standard_hotel_report.save_all()
