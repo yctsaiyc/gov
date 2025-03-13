@@ -443,6 +443,73 @@ class StandardHotelReport(Hotel):
         return pd.DataFrame()
 
 
+class HomeStay(Hotel):
+    def get_data_id(self):
+        return "10173"
+
+    def get_columns(self):
+        return [
+            "縣市別",
+            "合法民宿家數",
+            "合法民宿房間數",
+            "合法民宿員工人數",
+            "未合法民宿家數",
+            "未合法民宿房間數",
+            "未合法民宿員工人數",
+        ]
+
+    def get_df(self, name, url):
+        # 1. 讀取excel
+        try:
+            df = pd.read_excel(url)
+
+        except Exception as e:
+            print(e)
+            return pd.DataFrame()
+
+        # 2. 新增缺少欄位
+        if len(df.columns) == 3:  # 2023-08以後
+            df["合法民宿員工人數"] = ""
+            df["未合法民宿家數"] = ""
+            df["未合法民宿房間數"] = ""
+            df["未合法民宿員工人數"] = ""
+
+        elif len(df.columns) == 4:  # 2019 到 2023-07
+            df["未合法民宿家數"] = ""
+            df["未合法民宿房間數"] = ""
+            df["未合法民宿員工人數"] = ""
+
+        elif len(df.columns) == 10:  # 2014-10 到 2018
+            # 刪除小計
+            df = df.iloc[:, :7]
+
+        elif len(df.columns) == 7:  # 2011-03 到 2014-09
+            # 刪除小計
+            df = df.iloc[:, :5]
+
+            # 新增員工數
+            df.insert(3, "合法民宿員工人數", "")
+            df["未合法民宿員工人數"] = ""
+
+        # 3. 重新命名欄位
+        df.columns = self.columns
+
+        # 4. 新增年月欄位
+        split = name.replace(" ", "").split("月")[0].split("年")
+        year = split[0]
+        month = split[1].zfill(2)
+        year_month = f"{year}-{month}"
+        df.insert(0, "年月", year_month)
+
+        # 5. 刪除表頭、"總計" 及其以下的列
+        df = df.iloc[2 : df[df["縣市別"].str.contains("總", na=False)].index.min()]
+
+        # 6. 印出資料長度
+        print("Number of Records:", len(df))
+
+        return df
+
+
 if __name__ == "__main__":
     # # 觀光旅館合法家數統計表
     # tourist_hotel = TouristHotel("data/tourist_hotel")
@@ -456,6 +523,10 @@ if __name__ == "__main__":
     # standard_hotel = StandardHotel("data/standard_hotel")
     # standard_hotel.save_all()
 
-    # 一般旅館營運報表
-    standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
-    standard_hotel_report.save_all()
+    # # 一般旅館營運報表
+    # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
+    # standard_hotel_report.save_all()
+
+    # 民宿家數及房間數統計表
+    home_stay = HomeStay("data/home_stay")
+    home_stay.save_all()
