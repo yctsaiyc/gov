@@ -40,7 +40,7 @@ class Hotel:
                 print(f"Skip: {name}.")
                 continue
 
-            csv_path = f"{self.data_dir}/{name}.csv".replace(" ", "")
+            csv_path = f"{self.data_dir}/{name}.csv"
             df.to_csv(csv_path, index=False)
             print(f"Saved: {csv_path}.")
 
@@ -63,7 +63,7 @@ class Hotel:
 
             for tr in trs:
                 tds = tr.find_all("td")
-                name = tds[1].text
+                name = tds[1].text.replace(" ", "")
                 link_dict[name] = {}
 
                 for a in tds[2].find_all("a"):
@@ -78,6 +78,12 @@ class Hotel:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
         print(f"Saved {filename}.")
+
+    def get_year_month(self, name):
+        split = name.split("月")[0].split("年")
+        year = split[0]
+        month = split[1].zfill(2)
+        return f"{year}-{month}"
 
 
 # 觀光旅館合法家數統計表
@@ -114,34 +120,40 @@ class TouristHotel(Hotel):
             print(e)
             return pd.DataFrame()
 
-        # 2. 檢查是否為3行表頭+22個縣市+1合計
-        print("DataFrame length:", len(df))
-        # file_id = int(url.split("=")[-1])
-        # if file_id >= 20000 and len(df) != 26:
-        #     print("DataFrame length is not correct.")
-        #     return pd.DataFrame()
-        # elif file_id < 20000 and len(df) != 23:
-        #     print("DataFrame length is not correct.")
-        #     return pd.DataFrame()
-
-        # 3. 取得年月
-        year_month = df.iloc[0, 0]
-
-        if year_month:
-            year_month = year_month.split("：")[-1]
-
-        else:
-            print(df)
-            year_month = df.iloc[0, 1]
-
-        # 4. 刪除表頭和合計
+        # 2. 刪除表頭和合計
         df = df.iloc[3:-1]
 
-        # 5. 重新命名欄位
+        # 2-1. 舊資料另外處理
+        year_month = self.get_year_month(name)
+
+        if year_month < "2014-10" and year_month not in ["2007-10", "2011-02"]:
+            df = self.process_old_df(df, year_month)
+
+        # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 6. 新增年月欄位
+        # 4. 新增年月欄位
         df.insert(0, "年月", year_month)
+
+        # 5. 刪除 "小計" 的 column
+        df = df.loc[:, ~df.columns.str.contains("計")]
+
+        # 6. 印出資料長度
+        print("DataFrame length:", len(df))
+
+        return df
+
+    def process_old_df(self, df, year_month):
+        # 1. 合併縣市欄位
+        mask = df.iloc[:, 0].isna() | df.iloc[:, 0].isin(["臺灣省", "台灣省"])
+        df.iloc[:, 0] = df.iloc[:, 0].where(~mask, df.iloc[:, 1])
+
+        # 2. 刪除多餘縣市欄位
+        df = df.drop(df.columns[1], axis=1)
+
+        # 3. 刪除 "小計" 的 row
+        mask = (df.iloc[:, 0] != "小　計") & ~df.iloc[:, 0].isna()
+        df = df[mask]
 
         return df
 
@@ -192,10 +204,10 @@ class TouristHotelReport(Hotel):
             return pd.DataFrame()
 
         # 1.1 舊資料另外處理
-        if name.replace(" ", "")[:6] < "202006":
+        if name[:6] < "202006":
             return self.get_df_before_202006(df, name)
 
-        elif name.replace(" ", "")[:6] < "202101":
+        elif name[:6] < "202101":
             return self.get_df_202006_to_2021(df, name)
 
         else:
@@ -495,7 +507,7 @@ class HomeStay(Hotel):
         df.columns = self.columns
 
         # 4. 新增年月欄位
-        split = name.replace(" ", "").split("月")[0].split("年")
+        split = name.split("月")[0].split("年")
         year = split[0]
         month = split[1].zfill(2)
         year_month = f"{year}-{month}"
@@ -543,9 +555,9 @@ class HomeStayReport(StandardHotelReport):
 
 
 if __name__ == "__main__":
-    # # 觀光旅館合法家數統計表
-    # tourist_hotel = TouristHotel("data/tourist_hotel")
-    # tourist_hotel.save_all()
+    # 觀光旅館合法家數統計表
+    tourist_hotel = TouristHotel("data/tourist_hotel")
+    tourist_hotel.save_all()
 
     # # 觀光旅館營運報表
     # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
@@ -563,6 +575,6 @@ if __name__ == "__main__":
     # home_stay = HomeStay("data/home_stay")
     # home_stay.save_all()
 
-    # 民宿營運報表
-    home_stay_report = HomeStayReport("data/home_stay_report")
-    home_stay_report.save_all()
+    # # 民宿營運報表
+    # home_stay_report = HomeStayReport("data/home_stay_report")
+    # home_stay_report.save_all()
