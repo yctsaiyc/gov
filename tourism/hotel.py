@@ -63,7 +63,7 @@ class Hotel:
 
             for tr in trs:
                 tds = tr.find_all("td")
-                name = tds[1].text.replace(" ", "")
+                name = tds[1].text.replace(" ", "").replace("(", "").replace(")", "")
                 link_dict[name] = {}
 
                 for a in tds[2].find_all("a"):
@@ -123,23 +123,24 @@ class TouristHotel(Hotel):
         # 2. 刪除表頭和合計
         df = df.iloc[3:-1]
 
-        # 2-1. 舊資料另外處理
+        # 3. 取得年月
         year_month = self.get_year_month(name)
 
+        # 3-1. 舊資料另外處理
         if year_month < "2014-10" and year_month not in ["2007-10", "2011-02"]:
             df = self.process_old_df(df, year_month)
 
-        # 3. 重新命名欄位
+        # 4. 重新命名欄位
         df.columns = self.columns
 
-        # 4. 新增年月欄位
+        # 5. 新增年月欄位
         df.insert(0, "年月", year_month)
 
-        # 5. 刪除 "小計" 的 column
+        # 6. 刪除 "小計" 的 column
         df = df.loc[:, ~df.columns.str.contains("計")]
 
-        # 6. 印出資料長度
-        print("DataFrame length:", len(df))
+        # 7. 印出資料長度
+        print("Number of Records:", len(df))
 
         return df
 
@@ -320,10 +321,7 @@ class StandardHotel(Hotel):
             print(e)
             return pd.DataFrame()
 
-        # 2. 取得年月
-        year_month = df.iloc[0, 0].split("月")[0].replace("年", "-")
-
-        # 3. 新增缺少欄位
+        # 2. 新增缺少欄位
         if len(df.columns) == 3:  # 2023-08以後
             df["合法旅館員工人數"] = ""
             df["未合法旅館家數"] = ""
@@ -339,17 +337,26 @@ class StandardHotel(Hotel):
             # 刪除小計
             df = df.iloc[:, :7]
 
-        # 4. 重新命名欄位
+        # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 5. 新增年月欄位
+        # 4. 新增年月欄位
+        year_month = self.get_year_month(name)
         df.insert(0, "年月", year_month)
 
-        # 6. 刪除表頭、"總計" 及其以下的列
-        df = df.iloc[2 : df[df["縣市別"].str.contains("總", na=False)].index.min()]
+        # 5. 刪除表頭、"總計" 及其以下的列
+        if year_month in ["2013-10", "2013-11", "2013-12"]:
+            skip_rows = 3
 
-        # 7. 印出資料長度
-        print("DataFrame length:", len(df))
+        else:
+            skip_rows = 2
+
+        df = df.iloc[
+            skip_rows : df[df["縣市別"].str.contains("總", na=False)].index.min()
+        ]
+
+        # 6. 印出資料長度
+        print("Number of Records:", len(df))
 
         return df
 
@@ -555,17 +562,17 @@ class HomeStayReport(StandardHotelReport):
 
 
 if __name__ == "__main__":
-    # 觀光旅館合法家數統計表
-    tourist_hotel = TouristHotel("data/tourist_hotel")
-    tourist_hotel.save_all()
+    # # 觀光旅館合法家數統計表
+    # tourist_hotel = TouristHotel("data/tourist_hotel")
+    # tourist_hotel.save_all()
 
     # # 觀光旅館營運報表
     # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
     # tourist_hotel_report.save_all()
 
-    # # 一般旅館家數及房間數統計表
-    # standard_hotel = StandardHotel("data/standard_hotel")
-    # standard_hotel.save_all()
+    # 一般旅館家數及房間數統計表
+    standard_hotel = StandardHotel("data/standard_hotel")
+    standard_hotel.save_all()
 
     # # 一般旅館營運報表
     # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
