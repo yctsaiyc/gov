@@ -478,15 +478,21 @@ class StandardHotelReport(Hotel):
 
     def get_columns(self):
         return [
+            "年月",  # 原始資料無
             "縣市",  # "地區名稱",
+            "總家數",  # 2019 以前
             "填報率",
             "未報家數",
+            "住用及營收概況-總出租客房數",  # 2021 以前
             "住用及營收概況-客房住用數",
             "住用及營收概況-住用率",
+            "住用及營收概況-住宿人數",  # 2020 以前
             "住用及營收概況-平均房價",
-            "住用及營收概況-房租收入 ",
-            "住用及營收概況-餐飲收入 ",
+            "住用及營收概況-房租收入",
+            "住用及營收概況-餐飲收入",
+            "住用及營收概況-其他收入",  # 2021 以前
             "住用及營收概況-總營業收入",
+            "住用及營收概況-裝修及設備支出",  # 2020 以前
             "各部門職工概況-客房部(男)",
             "各部門職工概況-客房部(女)",
             "各部門職工概況-客房部人數",
@@ -504,6 +510,84 @@ class StandardHotelReport(Hotel):
             "各部門職工概況-員工合計人數",
         ]
 
+    def get_rename_dict(self):
+        return {
+            # 2024
+            "地區名稱Region": "縣市",
+            "填報率%": "填報率",
+            "未報家數Count": "未報家數",
+            "客房住用數No. of Rooms Occupied": "住用及營收概況-客房住用數",
+            "住用率Occupancy Rate": "住用及營收概況-住用率",
+            "平均房價Average Room Rate": "住用及營收概況-平均房價",
+            "房租收入Room Revenue": "住用及營收概況-房租收入",
+            "餐飲收入F & B Revenue": "住用及營收概況-餐飲收入",
+            "總營業收入Total Revenue": "住用及營收概況-總營業收入",
+            "客房部(男) Room Dep.": "各部門職工概況-客房部(男)",
+            "客房部(女) Room Dep.": "各部門職工概況-客房部(女)",
+            "客房部人數Room Dep.": "各部門職工概況-客房部人數",
+            "餐飲部(男) F&B Dep.": "各部門職工概況-餐飲部(男)",
+            "餐飲部(女) F&B Dep.": "各部門職工概況-餐飲部(女)",
+            "餐飲部人數F&B Dep.": "各部門職工概況-餐飲部人數",
+            "管理部(男) Adm. Dep.": "各部門職工概況-管理部(男)",
+            "管理部(女) Adm. Dep.": "各部門職工概況-管理部(女)",
+            "管理部人數Adm. Dep.": "各部門職工概況-管理部人數",
+            "其他部門(男) Other Dep.": "各部門職工概況-其他部門(男)",
+            "其他部門(女) Other Dep.": "各部門職工概況-其他部門(女)",
+            "其他部門人數Other Dep.": "各部門職工概況-其他部門人數",
+            "員工合計(男) Total": "各部門職工概況-員工合計(男)",
+            "員工合計(女) Total": "各部門職工概況-員工合計(女)",
+            "員工合計人數Total": "各部門職工概況-員工合計人數",
+            # 2023
+            "地區名稱": "縣市",
+            "填報率": "填報率",
+            "未報家數": "未報家數",
+            "客房住用數": "住用及營收概況-客房住用數",
+            "住用率": "住用及營收概況-住用率",
+            "平均房價": "住用及營收概況-平均房價",
+            "客房收入": "住用及營收概況-房租收入",
+            "餐飲收入": "住用及營收概況-餐飲收入",
+            "總營業收入": "住用及營收概況-總營業收入",
+            "客房部(男) ": "各部門職工概況-客房部(男)",
+            "客房部(女) ": "各部門職工概況-客房部(女)",
+            "客房部人數": "各部門職工概況-客房部人數",
+            "餐飲部(男) ": "各部門職工概況-餐飲部(男)",
+            "餐飲部(女) ": "各部門職工概況-餐飲部(女)",
+            "餐飲部人數": "各部門職工概況-餐飲部人數",
+            "管理部(男) ": "各部門職工概況-管理部(男)",
+            "管理部(女) ": "各部門職工概況-管理部(女)",
+            "管理部人數": "各部門職工概況-管理部人數",
+            "其他部門(男) ": "各部門職工概況-其他部門(男)",
+            "其他部門(女) ": "各部門職工概況-其他部門(女)",
+            "其他部門人數": "各部門職工概況-其他部門人數",
+            "員工合計(男) ": "各部門職工概況-員工合計(男)",
+            "員工合計(女) ": "各部門職工概況-員工合計(女)",
+            "員工合計人數": "各部門職工概況-員工合計人數",
+            # 2021
+            "縣市": "縣市",
+            "填報率": "填報率",
+            "客房住用率": "住用及營收概況-住用率",
+            "其他收入": "住用及營收概況-其他收入",
+            "收入合計": "住用及營收概況-總營業收入",
+            "員工人數": "各部門職工概況-員工合計人數",
+            "總出租客房數": "住用及營收概況-總出租客房數",
+            # 2020
+            "住宿人數": "住用及營收概況-住宿人數",
+            "裝修及設備支出": "住用及營收概況-裝修及設備支出",
+            # 2019
+            "1月總家數": "總家數",
+            "2月總家數": "總家數",
+            "3月總家數": "總家數",
+            "4月總家數": "總家數",
+            "5月總家數": "總家數",
+            "6月總家數": "總家數",
+            "7月總家數": "總家數",
+            "8月總家數": "總家數",
+            "9月總家數": "總家數",
+            "10月總家數": "總家數",
+            "11月總家數": "總家數",
+            "12月總家數": "總家數",
+        }
+
     def get_df(self, name, url):
         if "1-12月" not in name and "1~12月" not in name:
             return pd.DataFrame()
@@ -517,7 +601,7 @@ class StandardHotelReport(Hotel):
             return pd.DataFrame()
 
         # 2. 創建空DataFrame
-        df = pd.DataFrame(columns=["年月"] + self.columns)
+        df = pd.DataFrame(columns=self.columns)
 
         # 3. 合併所有sheet
         year = name[:4]
@@ -529,47 +613,50 @@ class StandardHotelReport(Hotel):
 
             df2 = df_dict[sheet_name]
 
-            # 3-1-1. 舊資料另外處理
-            if year <= "2021":
-                df2 = self.get_df_before_2021(df2)
-                df = pd.concat([df, df2], ignore_index=True)
-                continue
 
-            # 3-2. 重新命名欄位
-            df2.columns = self.columns
+            # 3-2. 刪除表頭
+            mask = df2.iloc[:, 0].astype(str).str.contains("縣市|地區|填報", na=False)
+            header_idx = mask.idxmax()
+            df2.columns = df2.iloc[header_idx]
+            df2 = df2.iloc[header_idx + 1 :].reset_index(drop=True)
 
-            # 3-3. 新增年月欄位
+            # 3-3. 重新命名欄位
+            for col in df2.columns:
+                if col not in self.get_rename_dict() and not pd.isna(col):
+                    print(f"發現新欄位: {col}")
+
+            df2 = df2.rename(columns=self.get_rename_dict())
+
+            # 3-4. 重新排序欄位
+            df2 = df2.reindex(columns=self.columns)
+
+            # 3-5. 填入年月
             month = sheet_name.replace("月", "").zfill(2)
             year_month = f"{year}-{month}"
             print(year_month)
-            df2.insert(0, "年月", year_month)
+            df2["年月"] = year_month
 
-            # 3-4. 刪除表頭、"合計" 及其以下的列
+            # 3-6. 刪除 "合計" 及其以下的row
             df2 = df2.iloc[
-                3 : df2[df2["縣市"].str.contains("計", na=False)].index.min()
+                0 : df2[df2["縣市"].str.contains("計", na=False)].index.min()
             ]
 
-            # 3-5. 百分率轉換
+            # 3-7. 百分率轉換
             mask = df2.columns.str.contains("率")
             df2.loc[:, mask] = df2.loc[:, mask].astype(float).mul(100).round(2)
 
-            # 3-6. 印出資料長度
+            # 3-8. 印出資料長度
             print("Number of Records:", len(df2))
 
-            # 3-7. 合併DataFrame
+            # 3-9. 合併DataFrame
             df = pd.concat([df, df2], ignore_index=True)
 
-        # 4. 刪除男女合計欄位
+        # 4. 刪除不必要的欄位
         df = df.drop(
-            columns=[
-                col for col in df.columns if any(x in col for x in ["男", "女", "合計"])
-            ]
+            columns=[col for col in df.columns if any(x in col for x in ["男", "女"])]
         )
 
         return df
-
-    def get_df_before_2021(self, df):
-        return pd.DataFrame()
 
 
 class HomeStay(Hotel):
@@ -676,17 +763,17 @@ if __name__ == "__main__":
     # tourist_hotel = TouristHotel("data/tourist_hotel")
     # tourist_hotel.save_all()
 
-    # 觀光旅館營運報表
-    tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
-    tourist_hotel_report.save_all()
+    # # 觀光旅館營運報表
+    # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
+    # tourist_hotel_report.save_all()
 
     # # 一般旅館家數及房間數統計表
     # standard_hotel = StandardHotel("data/standard_hotel")
     # standard_hotel.save_all()
 
-    # # 一般旅館營運報表
-    # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
-    # standard_hotel_report.save_all()
+    # 一般旅館營運報表
+    standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
+    standard_hotel_report.save_all()
 
     # # 民宿家數及房間數統計表
     # home_stay = HomeStay("data/home_stay")
