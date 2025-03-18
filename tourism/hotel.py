@@ -71,7 +71,7 @@ class Hotel:
                     data_format = a.find("span").text.split("：")[-1]
                     link_dict[name][data_format] = f"{self.base_url}{link}"
 
-            # return link_dict  ###
+            return link_dict  ###
             page += 1
 
     def save_json(self, content, filename):
@@ -189,7 +189,43 @@ class TouristHotelReport(Hotel):
             "員工合計(男)",
             "員工合計(女)",
             "員工合計人數",
+            "FIT類別",
+            "GROUP類別",
+            "類別合計",
+            "本國",
+            "中國大陸",
+            "日本",
+            "南韓",
+            "港澳",
+            "新加坡",
+            "馬來西亞",
+            "泰國",
+            "印尼",
+            "越南",
+            "菲律賓",
+            "汶萊",
+            "緬甸",
+            "寮國",
+            "柬埔寨",
+            "印度",
+            "中東",
+            "俄羅斯",
+            "其他亞洲地區",  # 舊版欄位
+            "美國",
+            "加拿大",
+            "北美",  # 舊版欄位
+            "中南美洲",
+            "英國",
+            "歐洲其他地區",
+            "紐澳",
+            "非洲",
+            "其他地區",
+            "華僑",  # 舊版欄位
+            "合計",
         ]
+
+    def get_year_month(self, name):
+        return f"{name[:4]}-{name[4:6]}"
 
     def get_df(self, name, url):
         # 0. 檢查是否是單月資料
@@ -204,96 +240,170 @@ class TouristHotelReport(Hotel):
             print(e)
             return pd.DataFrame()
 
-        # 1.1 舊資料另外處理
-        if name[:6] < "202006":
-            return self.get_df_before_202006(df, name)
-
-        elif name[:6] < "202101":
-            return self.get_df_202006_to_2021(df, name)
-
-        else:
-            return pd.DataFrame()
-
         # 2. 取得年月
-        year_month = df.iloc[0, 12].split("月")[0].replace("年", "-")
+        year_month = self.get_year_month(name)
 
-        # 3. 刪除多餘欄位
-        df = df.iloc[:, [0, 3, 5, 8, 9] + list(range(11, 29))]
+        # 3. 分離出主表
+        if year_month >= "2021-01":
+            df_main = self.get_df_main(df)
 
-        # 4. 重新命名欄位
-        df.columns = self.columns
+            # 4. 分離出國家表
+            df_country = self.get_df_country(df)
 
-        # 5. 新增年月欄位
+        # 舊資料另外處理
+        else:
+            df_main = self.get_old_df_main(df, year_month)
+            df_country = self.get_df_old_country(df, year_month)
+
+        # 5. 合併表格
+        df = df_main.merge(df_country, on=["地區名稱", "分類"], how="left")
+
+        # 6. 確認欄位名稱正確
+        if list(df.columns) != list(self.columns):
+            print(df.columns)
+
+        # 7. 新增年月欄位
         df.insert(0, "年月", year_month)
 
-        # 6. 刪除 "總計" 及其以下的列
-        df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
-
-        # 7. 刪除 "小計" 所在的列，刪除表頭
-        df = df[~df["分類"].isin(["小計", None, np.nan])]
-
-        # 8. 將住用率轉換成百分比
-        df["住用率"] = df["住用率"].astype(float).mul(100).round(2)
-
-        # 9. 印出資料長度
-        print("DataFrame length:", len(df))
-
-        # 10. 刪除男女合計欄位
+        # 8. 刪除男、女、合計欄位
         df = df.drop(
             columns=[
                 col for col in df.columns if any(x in col for x in ["男", "女", "合計"])
             ]
         )
 
+        # 9. 印出資料長度
+        print("Number of Records:", len(df))
+
         return df
 
-    def get_df_202006_to_2021(self, df, name):
-        # 1. 取得年月
-        if "202301" in name:
-            year_month = "2023-01"
+    def get_df_main(self, df):
+        # 1. 刪除多餘欄位
+        df = df.iloc[:, [0, 3, 5, 8, 9] + list(range(11, 29))]
 
-        elif "202006" in name:
-            year_month = "2020-06"
+        # 2. 重新命名欄位
+        df.columns = self.columns[:23]
 
-        else:
-            year_month = df.iloc[0, 12].split("月")[0].replace("年", "-")
+        # 3. 刪除 "總計" 及其以下的row
+        df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
 
-        # 2. 刪除多餘欄位
+        # 4. 刪除 "小計" 所在的row，刪除表頭
+        df = df[~df["分類"].isin(["小計", None, np.nan])]
+
+        # 5. 將住用率轉換成百分比
+        df["住用率"] = df["住用率"].astype(float).mul(100).round(2)
+
+        # 6. 印出資料長度
+        print("Number of Records:", len(df))
+
+        return df
+
+    def get_df_country(self, df):
+        # 1. 找到初始點
+        mask = df.iloc[:, 2].eq("FIT類別")
+        df = df.loc[mask.idxmax() :].reset_index(drop=True)
+
+        # 2. 新增舊欄位
+        df.insert(23, "其他亞洲地區", "")
+        df.insert(26, "北美", "")
+        df.insert(33, "華僑", "")
+
+        # # 3. 檢查國家順序
+        # if df.iloc[0].tolist()[2:] == self.columns[23:]:
+        #     df = df.iloc[1:].reset_index(drop=True)
+
+        # else:
+        #     print("Country order error")
+        #     print(df.iloc[0].tolist()[2:])
+        #     print(self.columns[23:])
+        #     raise
+
+        # 4. 重新命名欄位
+        df.columns = self.columns[:2] + self.columns[23:]
+
+        # 5. 刪除 "總計" 及其以下的row
+        df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
+
+        # 6. 刪除 "小計" 所在的row
+        df = df[~df["分類"].isin(["小計", None, np.nan])]
+
+        # 7. 印出資料長度
+        print("Number of Records:", len(df))
+
+        return df
+
+    def get_old_df_main(self, df, year_month):
+        # 1. 刪除多餘欄位
         df = df.iloc[:, [0, 3, 5, 8, 9] + list(range(11, 19))]
 
-        # 3. 新增缺少欄位
+        # 2. 新增缺少欄位
         for i in [8, 9, 11, 12, 14, 15, 17, 18, 20, 21]:
             df.insert(i, f"new_col{i}", "")
 
-        # 4. 重新命名欄位
+        # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 5. 新增年月欄位
-        df.insert(0, "年月", year_month)
-
-        # 6. 刪除 "總計" 及其以下的列
+        # 4. 刪除 "總計" 及其以下的列
         df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
 
-        # 7. 刪除 "小計" 所在的列，刪除表頭
+        # 5. 刪除 "小計" 所在的列，刪除表頭
         df = df[~df["分類"].isin(["小計", None, np.nan])]
 
-        # 8. 將住用率轉換成百分比
+        # 6. 將住用率轉換成百分比
         df["住用率"] = df["住用率"].astype(float).mul(100).round(2)
 
-        # 9. 印出資料長度
-        print("DataFrame length:", len(df))
-
-        # 10. 刪除男女合計欄位
-        df = df.drop(
-            columns=[
-                col for col in df.columns if any(x in col for x in ["男", "女", "合計"])
-            ]
-        )
+        # 7. 印出資料長度
+        print("Number of Records:", len(df))
 
         return df
 
-    def get_df_before_202006(self, df, name):
-        return pd.DataFrame()
+    def get_old_df_country(self, df, year_month):
+        # 1. 找到初始點
+        mask = df.iloc[:, 2].eq("FIT類別")
+        df = df.loc[mask.idxmax() :].reset_index(drop=True)
+
+        # 2. 新增缺少國家
+        # 本國,大陸,日本,韓國,港澳,新加坡,馬來西亞,其他亞洲地區,北美,歐洲,紐澳,其它,華僑,合計
+        df.insert(12, "泰國", "")
+        df.insert(13, "印尼", "")
+        df.insert(14, "越南", "")
+        df.insert(15, "菲律賓", "")
+        df.insert(16, "汶萊", "")
+        df.insert(17, "緬甸", "")
+        df.insert(18, "寮國", "")
+        df.insert(19, "柬埔寨", "")
+        df.insert(20, "印度", "")
+        df.insert(21, "中東", "")
+        df.insert(22, "俄羅斯", "")
+        df.insert(24, "美國", "")
+        df.insert(25, "加拿大", "")
+        df.insert(27, "中南美洲", "")
+        df.insert(28, "英國", "")
+        df.insert(31, "非洲", "")
+
+        # 3. 重新命名欄位
+        df.rename(
+            columns={
+                df.columns[0]: "地區名稱",
+                df.columns[1]: "分類",
+                "大陸": "中國大陸",
+                "韓國": "南韓",
+                "歐洲": "歐洲其他地區",
+                "其它": "其他地區",
+            },
+            inplace=True,
+        )
+
+        # 4. 刪除 "總計" 及其以下的row
+        df = df.iloc[: df[df["分類"].eq("總計")].index.min()]
+
+        # 5. 刪除 "小計" 所在的row
+        df = df[~df["分類"].isin(["小計", None, np.nan])]
+
+        # 6. 印出資料長度
+        print("Number of Records:", len(df))
+
+        return df
 
 
 # 一般旅館家數及房間數統計表
@@ -566,13 +676,13 @@ if __name__ == "__main__":
     # tourist_hotel = TouristHotel("data/tourist_hotel")
     # tourist_hotel.save_all()
 
-    # # 觀光旅館營運報表
-    # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
-    # tourist_hotel_report.save_all()
+    # 觀光旅館營運報表
+    tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
+    tourist_hotel_report.save_all()
 
-    # 一般旅館家數及房間數統計表
-    standard_hotel = StandardHotel("data/standard_hotel")
-    standard_hotel.save_all()
+    # # 一般旅館家數及房間數統計表
+    # standard_hotel = StandardHotel("data/standard_hotel")
+    # standard_hotel.save_all()
 
     # # 一般旅館營運報表
     # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
