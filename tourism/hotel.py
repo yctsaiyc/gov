@@ -16,9 +16,16 @@ class Hotel:
         os.makedirs(self.data_dir, exist_ok=True)
 
     def save_all(self):
+        # 取得所有資料連結
         link_dict = self.get_links()
+
+        # 將連結存成json
         # self.save_json(link_dict, "hotel.json")
 
+        # 創建空DataFrame
+        df = pd.DataFrame(columns=self.columns)
+
+        # 合併歷年資料
         for name in link_dict:
             if "XLSX" in link_dict[name]:
                 url = link_dict[name]["XLSX"]
@@ -30,19 +37,29 @@ class Hotel:
                 url = link_dict[name]["ODS"]
 
             else:
-                print(f"\nSkip: {name}.")
-                continue
-
-            print("\nURL:", url)
-            df = self.get_df(name, url)
-
-            if df.empty:
                 print(f"Skip: {name}.")
                 continue
 
-            csv_path = f"{self.data_dir}/{name}.csv"
-            df.to_csv(csv_path, index=False)
-            print(f"Saved: {csv_path}.")
+            print(f"\n{name}")
+            print("URL:", url)
+
+            try:
+                df = pd.concat([df, self.get_df(name, url)], ignore_index=True)
+
+            except Exception as e:
+                print(e)
+                break
+
+        # 刪除不必要的欄位
+        df = self.drop_columns(df)
+
+        # 排序
+        df = df.sort_values(by="年月", ascending=False, kind="stable")
+
+        # 存檔
+        csv_path = f"{self.data_dir}/all.csv"
+        df.to_csv(csv_path, index=False)
+        print(f"Saved: {csv_path}.")
 
     def get_links(self):
         file_page_url = f"{self.base_url}/businessinfo/FilePage?a={self.data_id}"
@@ -71,13 +88,16 @@ class Hotel:
                     data_format = a.find("span").text.split("：")[-1]
                     link_dict[name][data_format] = f"{self.base_url}{link}"
 
-            return link_dict  ###
+            # return link_dict  ###
             page += 1
 
     def save_json(self, content, filename):
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(content, f, ensure_ascii=False, indent=4)
         print(f"Saved {filename}.")
+
+    def drop_columns(self, df):
+        return df
 
     def get_year_month(self, name):
         split = name.split("月")[0].split("年")
@@ -586,11 +606,20 @@ class StandardHotelReport(Hotel):
             "10月總家數": "總家數",
             "11月總家數": "總家數",
             "12月總家數": "總家數",
+            # 2015
+            "回報率": "填報率",
         }
 
     def get_df(self, name, url):
-        if "1-12月" not in name and "1~12月" not in name:
-            return pd.DataFrame()
+        year = name[:4]
+
+        if year >= "2017":
+            if "1-12月" not in name and "1~12月" not in name:
+                return pd.DataFrame()
+
+        else:
+            if "年6月" not in name and "7~12月" not in name:
+                return pd.DataFrame()
 
         # 1. 讀取excel
         try:
@@ -604,8 +633,6 @@ class StandardHotelReport(Hotel):
         df = pd.DataFrame(columns=self.columns)
 
         # 3. 合併所有sheet
-        year = name[:4]
-
         for sheet_name in df_dict:
             # 3-1. 檢查是否為單月資料
             if "-" in sheet_name:
@@ -613,9 +640,10 @@ class StandardHotelReport(Hotel):
 
             df2 = df_dict[sheet_name]
 
-
             # 3-2. 刪除表頭
-            mask = df2.iloc[:, 0].astype(str).str.contains("縣市|地區|填報", na=False)
+            mask = (
+                df2.iloc[:, 0].astype(str).str.contains("縣市|地區|填報|回報", na=False)
+            )
             header_idx = mask.idxmax()
             df2.columns = df2.iloc[header_idx]
             df2 = df2.iloc[header_idx + 1 :].reset_index(drop=True)
@@ -651,12 +679,12 @@ class StandardHotelReport(Hotel):
             # 3-9. 合併DataFrame
             df = pd.concat([df, df2], ignore_index=True)
 
-        # 4. 刪除不必要的欄位
-        df = df.drop(
+        return df
+
+    def drop_columns(self, df):
+        return df.drop(
             columns=[col for col in df.columns if any(x in col for x in ["男", "女"])]
         )
-
-        return df
 
 
 class HomeStay(Hotel):
