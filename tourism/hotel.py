@@ -642,8 +642,11 @@ class StandardHotelReport(Hotel):
 
             # 3-2. 刪除表頭
             mask = (
-                df2.iloc[:, 0].astype(str).str.contains("縣市|地區|填報|回報", na=False)
+                df2.iloc[:, 0]
+                .astype(str)
+                .isin(["縣市", "地區名稱", "填報率", "回報率", "地區名稱Region"])
             )
+
             header_idx = mask.idxmax()
             df2.columns = df2.iloc[header_idx]
             df2 = df2.iloc[header_idx + 1 :].reset_index(drop=True)
@@ -760,8 +763,11 @@ class HomeStayReport(StandardHotelReport):
 
     def get_columns(self):
         return [
-            "填報率",
+            "年月",
             "縣市",
+            "總家數",
+            "填報率",
+            "未報家數",
             "總出租客房數",
             "客房住用數",
             "客房住用率",
@@ -771,19 +777,60 @@ class HomeStayReport(StandardHotelReport):
             "餐飲收入",
             "其他收入",
             "收入合計",
-            "裝修及設備",
+            "裝修及設備支出",
             "登記經營者(男)",
             "登記經營者(女)",
             "登記經營者小計",
             "員工人數(男)",
             "員工人數(女)",
-            "員工人數小計",
+            "員工人數",
             "經營者及員工人數總計",
-            "未報家數",
         ]
 
-    def get_df_before_2021(self, df):
-        return pd.DataFrame()
+    def get_rename_dict(self):
+        return {
+            "填報率": "填報率",
+            "縣市": "縣市",
+            "總出租客房數": "總出租客房數",
+            "客房住用數": "客房住用數",
+            "客房住用率": "客房住用率",
+            "住宿人次": "住宿人次",
+            "平均房價": "平均房價",
+            "客房收入": "客房收入",
+            "餐飲收入": "餐飲收入",
+            "其他收入": "其他收入",
+            "收入合計": "收入合計",
+            "裝修及設備": "裝修及設備支出",
+            "登記經營者(男) ": "登記經營者(男)",
+            "登記經營者(女) ": "登記經營者(女)",
+            "登記經營者小計": "登記經營者小計",
+            "員工人數(男) ": "員工人數(男)",
+            "員工人數(女) ": "員工人數(女)",
+            "員工人數小計": "員工人數",
+            "經營者及員工人數總計": "經營者及員工人數總計",
+            "未報家數": "未報家數",
+            # 2020
+            "住宿人數": "住宿人次",
+            "裝修及設備支出": "裝修及設備支出",
+            "員工人數": "員工人數",
+            # 2019
+            "1月總家數": "總家數",
+            "2月總家數": "總家數",
+            "3月總家數": "總家數",
+            "4月總家數": "總家數",
+            "5月總家數": "總家數",
+            "6月總家數": "總家數",
+            "7月總家數": "總家數",
+            "8月總家數": "總家數",
+            "9月總家數": "總家數",
+            "10月總家數": "總家數",
+            "11月總家數": "總家數",
+            "12月總家數": "總家數",
+            # 2017
+            "經營人數": "登記經營者小計",
+            # 2015
+            "回報率": "填報率",
+        }
 
 
 if __name__ == "__main__":
@@ -799,14 +846,14 @@ if __name__ == "__main__":
     # standard_hotel = StandardHotel("data/standard_hotel")
     # standard_hotel.save_all()
 
-    # 一般旅館營運報表
-    standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
-    standard_hotel_report.save_all()
+    # # 一般旅館營運報表
+    # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
+    # standard_hotel_report.save_all()
 
     # # 民宿家數及房間數統計表
     # home_stay = HomeStay("data/home_stay")
     # home_stay.save_all()
 
-    # # 民宿營運報表
-    # home_stay_report = HomeStayReport("data/home_stay_report")
-    # home_stay_report.save_all()
+    # 民宿營運報表
+    home_stay_report = HomeStayReport("data/home_stay_report")
+    home_stay_report.save_all()
