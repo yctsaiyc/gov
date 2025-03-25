@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 import json
 import pandas as pd
 import numpy as np
+from io import BytesIO, StringIO
+import pdfplumber
 
 
 class Hotel:
@@ -15,9 +17,30 @@ class Hotel:
         self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
 
+    def update_data(self):
+        # 取得檔名和下載連結
+        link_dict = self.get_links()
+        name, url = next(iter(link_dict.items()))
+        url = next(iter(url.values()))
+        print(f"{name}: {url}")
+
+        # 轉成DataFrame
+        df = self.get_df(url)
+        df = self.process_df(df, name)
+
+        # 刪除不必要的欄位
+        df = self.drop_columns(df)
+
+        # 存檔
+        csv_path = f"{self.data_dir}/{name}.csv"
+        df.to_csv(csv_path, index=False)
+        print(f"Saved: {csv_path}.")
+
     def save_all(self):
         # 取得所有資料連結
-        link_dict = self.get_links()
+        link_dict = self.get_links(get_all=True)
+        print(link_dict)
+        exit()
 
         # 將連結存成json
         # self.save_json(link_dict, "hotel.json")
@@ -27,6 +50,8 @@ class Hotel:
 
         # 合併歷年資料
         for name in link_dict:
+            file_type = "EXCEL"
+
             if "XLSX" in link_dict[name]:
                 url = link_dict[name]["XLSX"]
 
@@ -36,6 +61,10 @@ class Hotel:
             elif "ODS" in link_dict[name]:
                 url = link_dict[name]["ODS"]
 
+            elif "PDF" in link_dict[name]:
+                url = link_dict[name]["PDF"]
+                file_type = "PDF"
+
             else:
                 print(f"Skip: {name}.")
                 continue
@@ -43,17 +72,19 @@ class Hotel:
             print(f"\n{name}")
             print("URL:", url)
 
-            try:
-                df = pd.concat([df, self.get_df(name, url)], ignore_index=True)
+            if file_type == "EXCEL":
+                df2 = self.get_df(url)
 
-            except Exception as e:
-                print(e)
-                break
+            else:
+                df2 = self.pdf_to_df(url)
+
+            df2 = self.process_df(df2, name)
+            df = pd.concat([df, df2], ignore_index=True)
 
         # 刪除不必要的欄位
         df = self.drop_columns(df)
 
-        # 排序
+        # 依時間排序
         df = df.sort_values(by="年月", ascending=False, kind="stable")
 
         # 存檔
@@ -61,10 +92,10 @@ class Hotel:
         df.to_csv(csv_path, index=False)
         print(f"Saved: {csv_path}.")
 
-    def get_links(self):
+    def get_links(self, get_all=False):
         file_page_url = f"{self.base_url}/businessinfo/FilePage?a={self.data_id}"
         link_dict = {}
-        page = 1  ###
+        page = 1
 
         while True:
             url = f"{file_page_url}&P={page}"
@@ -88,7 +119,9 @@ class Hotel:
                     data_format = a.find("span").text.split("：")[-1]
                     link_dict[name][data_format] = f"{self.base_url}{link}"
 
-            # return link_dict  ###
+                    if not get_all:
+                        return link_dict
+
             page += 1
 
     def save_json(self, content, filename):
@@ -104,6 +137,9 @@ class Hotel:
         year = split[0]
         month = split[1].zfill(2)
         return f"{year}-{month}"
+
+    def pdf_to_df(self):
+        return pd.DataFrame()
 
 
 # 觀光旅館合法家數統計表
@@ -131,7 +167,7 @@ class TouristHotel(Hotel):
             "小計合計",
         ]
 
-    def get_df(self, name, url):
+    def get_df(self, url):
         # 1. 讀取excel
         try:
             df = pd.read_excel(url)
@@ -143,25 +179,42 @@ class TouristHotel(Hotel):
         # 2. 刪除表頭和合計
         df = df.iloc[3:-1]
 
-        # 3. 取得年月
-        year_month = self.get_year_month(name)
-
-        # 3-1. 舊資料另外處理
-        if year_month < "2014-10" and year_month not in ["2007-10", "2011-02"]:
-            df = self.process_old_df(df, year_month)
-
-        # 4. 重新命名欄位
+        # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 5. 新增年月欄位
+        print(1)
+        print(df)
+        return df
+
+    def process_df(self, df, name):
+        # 1. 取得年月
+        year_month = self.get_year_month(name)
+
+        # 1-1. 舊資料另外處理
+        if (
+            year_month > "2011-02"
+            and year_month < "2014-10"
+            and year_month != "2007-10"
+        ):
+            df = self.process_old_df(df, year_month)
+
+        # 2. 新增年月欄位
         df.insert(0, "年月", year_month)
 
-        # 6. 刪除 "小計" 的 column
-        df = df.loc[:, ~df.columns.str.contains("計")]
-
-        # 7. 印出資料長度
+        # 3. 印出資料長度
         print("Number of Records:", len(df))
 
+        print(2)
+        print(df)
+
+        return df
+
+    def drop_columns(self, df):
+        # 刪除 "小計" 的 columns
+        df = df.loc[:, ~df.columns.str.contains("計")]
+
+        print(3)
+        print(df)
         return df
 
     def process_old_df(self, df, year_month):
@@ -440,16 +493,14 @@ class StandardHotel(Hotel):
             "未合法旅館家數",
             "未合法旅館房間數",
             "未合法旅館員工人數",
+            "家數小計",
+            "房間數小計",
+            "員工人數小計",
         ]
 
-    def get_df(self, name, url):
+    def get_df(self, url):
         # 1. 讀取excel
-        try:
-            df = pd.read_excel(url)
-
-        except Exception as e:
-            print(e)
-            return pd.DataFrame()
+        df = pd.read_excel(url, engine="openpyxl")
 
         # 2. 新增缺少欄位
         if len(df.columns) == 3:  # 2023-08以後
@@ -457,24 +508,30 @@ class StandardHotel(Hotel):
             df["未合法旅館家數"] = ""
             df["未合法旅館房間數"] = ""
             df["未合法旅館員工人數"] = ""
+            df["家數小計"] = ""
+            df["房間數小計"] = ""
+            df["員工人數小計"] = ""
 
         elif len(df.columns) == 4:  # 2019 到 2023-07
             df["未合法旅館家數"] = ""
             df["未合法旅館房間數"] = ""
             df["未合法旅館員工人數"] = ""
-
-        elif len(df.columns) == 10:  # 2011-03 到 2018
-            # 刪除小計
-            df = df.iloc[:, :7]
+            df["家數小計"] = ""
+            df["房間數小計"] = ""
+            df["員工人數小計"] = ""
 
         # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 4. 新增年月欄位
+        print("get_df:", df)
+        return df
+
+    def process_df(self, df, name):
+        # 1. 新增年月欄位
         year_month = self.get_year_month(name)
         df.insert(0, "年月", year_month)
 
-        # 5. 刪除表頭、"總計" 及其以下的列
+        # 2. 刪除表頭、"總計" 及其以下的列
         if year_month in ["2013-10", "2013-11", "2013-12"]:
             skip_rows = 3
 
@@ -485,8 +542,38 @@ class StandardHotel(Hotel):
             skip_rows : df[df["縣市別"].str.contains("總", na=False)].index.min()
         ]
 
-        # 6. 印出資料長度
+        # 3. 印出資料長度
         print("Number of Records:", len(df))
+
+        print("process_df:", df)
+        return df
+
+    def drop_columns(self, df):
+        print("drop_columns:", df.iloc[:, :7])
+        # 刪除小計
+        return df.iloc[:, :7]
+
+    def pdf_to_df(self, url):
+        response = requests.get(url)
+        pdf_file = BytesIO(response.content)
+        text = ""
+
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+
+        text = "縣市別 " + text.split("縣市別\n")[1].split("總 計 計")[0]
+        df = pd.read_csv(StringIO(text), sep=" ", engine="python")
+        df.columns = [
+            "縣市別",
+            "合法民宿家數",
+            "合法民宿房間數",
+            "未合法民宿家數",
+            "未合法民宿房間數",
+            "家數小計",
+            "房間數小計",
+        ]
+        print("pdf_to_df:", df)
 
         return df
 
@@ -834,8 +921,9 @@ class HomeStayReport(StandardHotelReport):
 
 
 if __name__ == "__main__":
-    # # 觀光旅館合法家數統計表
-    # tourist_hotel = TouristHotel("data/tourist_hotel")
+    # 觀光旅館合法家數統計表
+    tourist_hotel = TouristHotel("data/tourist_hotel")
+    tourist_hotel.update_data()
     # tourist_hotel.save_all()
 
     # # 觀光旅館營運報表
@@ -854,6 +942,6 @@ if __name__ == "__main__":
     # home_stay = HomeStay("data/home_stay")
     # home_stay.save_all()
 
-    # 民宿營運報表
-    home_stay_report = HomeStayReport("data/home_stay_report")
-    home_stay_report.save_all()
+    # # 民宿營運報表
+    # home_stay_report = HomeStayReport("data/home_stay_report")
+    # home_stay_report.save_all()
