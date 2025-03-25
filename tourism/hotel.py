@@ -39,14 +39,12 @@ class Hotel:
     def save_all(self):
         # 取得所有資料連結
         link_dict = self.get_links(get_all=True)
-        print(link_dict)
-        exit()
 
         # 將連結存成json
         # self.save_json(link_dict, "hotel.json")
 
         # 創建空DataFrame
-        df = pd.DataFrame(columns=self.columns)
+        df = pd.DataFrame(columns=["年月"] + self.columns)
 
         # 合併歷年資料
         for name in link_dict:
@@ -77,6 +75,10 @@ class Hotel:
 
             else:
                 df2 = self.pdf_to_df(url)
+
+            if df2.empty:
+                print(f"Skip: {name}. DataFrame is empty.")
+                continue
 
             df2 = self.process_df(df2, name)
             df = pd.concat([df, df2], ignore_index=True)
@@ -138,9 +140,6 @@ class Hotel:
         month = split[1].zfill(2)
         return f"{year}-{month}"
 
-    def pdf_to_df(self):
-        return pd.DataFrame()
-
 
 # 觀光旅館合法家數統計表
 class TouristHotel(Hotel):
@@ -179,11 +178,6 @@ class TouristHotel(Hotel):
         # 2. 刪除表頭和合計
         df = df.iloc[3:-1]
 
-        # 3. 重新命名欄位
-        df.columns = self.columns
-
-        print(1)
-        print(df)
         return df
 
     def process_df(self, df, name):
@@ -198,23 +192,20 @@ class TouristHotel(Hotel):
         ):
             df = self.process_old_df(df, year_month)
 
-        # 2. 新增年月欄位
+        # 2. 重新命名欄位
+        df.columns = self.columns
+
+        # 3. 新增年月欄位
         df.insert(0, "年月", year_month)
 
-        # 3. 印出資料長度
+        # 4. 印出資料長度
         print("Number of Records:", len(df))
-
-        print(2)
-        print(df)
 
         return df
 
     def drop_columns(self, df):
         # 刪除 "小計" 的 columns
         df = df.loc[:, ~df.columns.str.contains("計")]
-
-        print(3)
-        print(df)
         return df
 
     def process_old_df(self, df, year_month):
@@ -228,6 +219,43 @@ class TouristHotel(Hotel):
         # 3. 刪除 "小計" 的 row
         mask = (df.iloc[:, 0] != "小　計") & ~df.iloc[:, 0].isna()
         df = df[mask]
+
+        return df
+
+    def pdf_to_df(self, url):
+        if "16047" in url:
+            return pd.DataFrame()
+
+        response = requests.get(url)
+        pdf_file = BytesIO(response.content)
+        text = ""
+
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+
+        text = (
+            text.replace("臺北市 小 計", "臺北市")
+            .replace("高雄市 小 計", "高雄市")
+            .replace("台灣省 基隆市", "基隆市")
+            .replace("小 計", "小計")
+            .replace("合 計", "合計")
+        )
+
+        if "臺北市" in text:
+            text = "臺北市" + text.split("臺北市")[1]
+
+        elif "台北市" in text:
+            text = "台北市" + text.split("台北市")[1]
+
+        try:
+            df = pd.read_csv(StringIO(text), sep=" ", engine="python", header=None)
+            df = df[~df.iloc[:, 0].astype(str).str.contains("計", na=False)]
+
+        except Exception as e:
+            print(text)
+            print(e)
+            return pd.DataFrame()
 
         return df
 
@@ -923,8 +951,8 @@ class HomeStayReport(StandardHotelReport):
 if __name__ == "__main__":
     # 觀光旅館合法家數統計表
     tourist_hotel = TouristHotel("data/tourist_hotel")
-    tourist_hotel.update_data()
-    # tourist_hotel.save_all()
+    # tourist_hotel.update_data()
+    tourist_hotel.save_all()
 
     # # 觀光旅館營運報表
     # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
