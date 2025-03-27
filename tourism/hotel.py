@@ -528,7 +528,12 @@ class StandardHotel(Hotel):
 
     def get_df(self, url):
         # 1. 讀取excel
-        df = pd.read_excel(url, engine="openpyxl")
+        try:
+            df = pd.read_excel(url)
+
+        except Exception as e:
+            print(e)
+            return pd.DataFrame()
 
         # 2. 新增缺少欄位
         if len(df.columns) == 3:  # 2023-08以後
@@ -551,7 +556,6 @@ class StandardHotel(Hotel):
         # 3. 重新命名欄位
         df.columns = self.columns
 
-        print("get_df:", df)
         return df
 
     def process_df(self, df, name):
@@ -566,20 +570,19 @@ class StandardHotel(Hotel):
         else:
             skip_rows = 2
 
-        df = df.iloc[
-            skip_rows : df[df["縣市別"].str.contains("總", na=False)].index.min()
-        ]
+        filtered_index = df[df["縣市別"].str.contains("總", na=False)].index
+
+        if not filtered_index.empty:
+            df = df.iloc[skip_rows : filtered_index.min()]
 
         # 3. 印出資料長度
         print("Number of Records:", len(df))
 
-        print("process_df:", df)
         return df
 
     def drop_columns(self, df):
-        print("drop_columns:", df.iloc[:, :7])
         # 刪除小計
-        return df.iloc[:, :7]
+        return df.iloc[:, :-3]
 
     def pdf_to_df(self, url):
         response = requests.get(url)
@@ -590,18 +593,20 @@ class StandardHotel(Hotel):
             for page in pdf.pages:
                 text += page.extract_text() + "\n"
 
-        text = "縣市別 " + text.split("縣市別\n")[1].split("總 計 計")[0]
-        df = pd.read_csv(StringIO(text), sep=" ", engine="python")
-        df.columns = [
-            "縣市別",
-            "合法民宿家數",
-            "合法民宿房間數",
-            "未合法民宿家數",
-            "未合法民宿房間數",
-            "家數小計",
-            "房間數小計",
-        ]
-        print("pdf_to_df:", df)
+        try:
+            text = (
+                "台北市"
+                + text.split("新北市")[-1]
+                .split("台北市")[-1]
+                .split("總 計")[0]
+                .split("合 計")[0]
+            )
+            df = pd.read_csv(StringIO(text), sep=" ", engine="python", header=None)
+            df.columns = self.columns
+
+        except Exception as e:
+            print(text)
+            print(e)
 
         return df
 
@@ -805,7 +810,7 @@ class StandardHotelReport(Hotel):
         )
 
 
-class HomeStay(Hotel):
+class HomeStay(StandardHotel):
     def get_data_id(self):
         return "10173"
 
@@ -818,9 +823,12 @@ class HomeStay(Hotel):
             "未合法民宿家數",
             "未合法民宿房間數",
             "未合法民宿員工人數",
+            "家數小計",
+            "房間數小計",
+            "員工人數小計",
         ]
 
-    def get_df(self, name, url):
+    def get_df(self, url):
         # 1. 讀取excel
         try:
             df = pd.read_excel(url)
@@ -835,38 +843,49 @@ class HomeStay(Hotel):
             df["未合法民宿家數"] = ""
             df["未合法民宿房間數"] = ""
             df["未合法民宿員工人數"] = ""
+            df["家數小計"] = ""
+            df["房間數小計"] = ""
+            df["員工人數小計"] = ""
 
         elif len(df.columns) == 4:  # 2019 到 2023-07
             df["未合法民宿家數"] = ""
             df["未合法民宿房間數"] = ""
             df["未合法民宿員工人數"] = ""
-
-        elif len(df.columns) == 10:  # 2014-10 到 2018
-            # 刪除小計
-            df = df.iloc[:, :7]
+            df["家數小計"] = ""
+            df["房間數小計"] = ""
+            df["員工人數小計"] = ""
 
         elif len(df.columns) == 7:  # 2011-03 到 2014-09
-            # 刪除小計
-            df = df.iloc[:, :5]
-
             # 新增員工數
             df.insert(3, "合法民宿員工人數", "")
-            df["未合法民宿員工人數"] = ""
+            df.insert(6, "未合法民宿員工人數", "")
+            df["家數小計"] = ""
+            df["房間數小計"] = ""
+            df["員工人數小計"] = ""
 
         # 3. 重新命名欄位
         df.columns = self.columns
 
-        # 4. 新增年月欄位
-        split = name.split("月")[0].split("年")
-        year = split[0]
-        month = split[1].zfill(2)
-        year_month = f"{year}-{month}"
+        return df
+
+    def process_df(self, df, name):
+        # 1. 新增年月欄位
+        year_month = self.get_year_month(name)
         df.insert(0, "年月", year_month)
 
-        # 5. 刪除表頭、"總計" 及其以下的列
-        df = df.iloc[2 : df[df["縣市別"].str.contains("總", na=False)].index.min()]
+        # 2. 刪除表頭、"總計" 及其以下的列
+        if year_month in ["2013-10", "2013-11", "2013-12"]:
+            skip_rows = 3
 
-        # 6. 印出資料長度
+        else:
+            skip_rows = 2
+
+        filtered_index = df[df["縣市別"].str.contains("總", na=False)].index
+
+        if not filtered_index.empty:
+            df = df.iloc[skip_rows : filtered_index.min()]
+
+        # 3. 印出資料長度
         print("Number of Records:", len(df))
 
         return df
@@ -949,10 +968,10 @@ class HomeStayReport(StandardHotelReport):
 
 
 if __name__ == "__main__":
-    # 觀光旅館合法家數統計表
-    tourist_hotel = TouristHotel("data/tourist_hotel")
+    # # 觀光旅館合法家數統計表
+    # tourist_hotel = TouristHotel("data/tourist_hotel")
     # tourist_hotel.update_data()
-    tourist_hotel.save_all()
+    # # tourist_hotel.save_all()
 
     # # 觀光旅館營運報表
     # tourist_hotel_report = TouristHotelReport("data/tourist_hotel_report")
@@ -966,9 +985,9 @@ if __name__ == "__main__":
     # standard_hotel_report = StandardHotelReport("data/standard_hotel_report")
     # standard_hotel_report.save_all()
 
-    # # 民宿家數及房間數統計表
-    # home_stay = HomeStay("data/home_stay")
-    # home_stay.save_all()
+    # 民宿家數及房間數統計表
+    home_stay = HomeStay("data/home_stay")
+    home_stay.save_all()
 
     # # 民宿營運報表
     # home_stay_report = HomeStayReport("data/home_stay_report")
